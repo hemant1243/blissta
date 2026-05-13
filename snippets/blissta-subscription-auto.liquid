@@ -1,0 +1,143 @@
+{%- comment -%}
+  Blissta Subscription Auto-Select (universal — 5 products in one template)
+
+  Drop into a Custom Liquid section on the product template (one install
+  serves all five products; config is picked by handle substring so long
+  Shopify handles like "blissta-ultra-blue-gummies-15mg-..." still resolve).
+
+  Hooks window.fetch, intercepts outgoing POST /cart/add, and injects the
+  right selling_plan id based on the quantity tier (1 / 3 / 5+).
+
+  Hard rules:
+    - no GET /cart.js polling
+    - no retries
+    - no cart:refresh dispatch
+    - re-entrancy flag guards the hook
+{%- endcomment -%}
+
+<script>
+(function () {
+  'use strict';
+
+  if (window.__blisstaSubHooked) return;
+  window.__blisstaSubHooked = true;
+
+  /* qty-threshold -> selling_plan id, per product */
+  var PLAN_MAP = {
+    'methylene-blue': { 1: 1892057177, 3: 1924661337, 5: 1937768537 },
+    'capsule':        { 1: 2149548121, 3: 2248376409, 5: 2248409177 },
+    'gummies':        { 1: 2149515353, 3: 2248441945, 5: 2248474713 },
+    'painbloc':       { 1: 1904214105, 3: 1997832281, 5: 1997865049 },
+    'aeon':           { 1: 2150400089, 3: 2248310873, 5: 2248343641 }
+  };
+
+  var pageHandle = {{ product.handle | default: '' | json }};
+  {%- if product.variants and product.variants.size > 0 -%}
+  var variantIds = {{ product.variants | map: 'id' | json }};
+  {%- else -%}
+  var variantIds = [];
+  {%- endif %}
+
+  if (!pageHandle || !Array.isArray(variantIds) || variantIds.length === 0) return;
+
+  /* substring match — survives long handles & locale prefixes */
+  var plans = null;
+  for (var key in PLAN_MAP) {
+    if (pageHandle.indexOf(key) !== -1) { plans = PLAN_MAP[key]; break; }
+  }
+  if (!plans) return;
+
+  var variantSet = Object.create(null);
+  variantIds.forEach(function (id) { variantSet[String(id)] = true; });
+
+  function planForQty(q) {
+    q = parseInt(q, 10);
+    if (!isFinite(q) || q < 1) q = 1;
+    if (q >= 5) return plans[5];
+    if (q >= 3) return plans[3];
+    return plans[1];
+  }
+
+  function isOurVariant(id) {
+    return id != null && variantSet[String(id)] === true;
+  }
+
+  function urlOf(input) {
+    if (typeof input === 'string') return input;
+    if (input && typeof input.url === 'string') return input.url;
+    return '';
+  }
+
+  function isCartAdd(url) {
+    return /\/cart\/add(\.js)?($|\?)/.test(url);
+  }
+
+  function patchInit(init) {
+    if (!init || init.body == null) return init;
+    var body = init.body;
+
+    if (typeof FormData !== 'undefined' && body instanceof FormData) {
+      if (!isOurVariant(body.get('id'))) return init;
+      if (body.has('selling_plan')) return init;
+      body.set('selling_plan', String(planForQty(body.get('quantity') || 1)));
+      return init;
+    }
+
+    if (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams) {
+      if (!isOurVariant(body.get('id'))) return init;
+      if (body.has('selling_plan')) return init;
+      body.set('selling_plan', String(planForQty(body.get('quantity') || 1)));
+      return init;
+    }
+
+    if (typeof body === 'string') {
+      /* JSON: {items:[...]} or {id, quantity, ...} */
+      try {
+        var parsed = JSON.parse(body);
+        var changed = false;
+        if (parsed && Array.isArray(parsed.items)) {
+          parsed.items.forEach(function (item) {
+            if (item && isOurVariant(item.id) && item.selling_plan == null) {
+              item.selling_plan = planForQty(item.quantity || 1);
+              changed = true;
+            }
+          });
+        } else if (parsed && parsed.id != null && isOurVariant(parsed.id) && parsed.selling_plan == null) {
+          parsed.selling_plan = planForQty(parsed.quantity || 1);
+          changed = true;
+        }
+        if (changed) return Object.assign({}, init, { body: JSON.stringify(parsed) });
+        return init;
+      } catch (e) { /* not JSON, try urlencoded below */ }
+
+      /* application/x-www-form-urlencoded */
+      try {
+        var params = new URLSearchParams(body);
+        if (!isOurVariant(params.get('id'))) return init;
+        if (params.has('selling_plan')) return init;
+        params.set('selling_plan', String(planForQty(params.get('quantity') || 1)));
+        return Object.assign({}, init, { body: params.toString() });
+      } catch (e) { /* give up cleanly */ }
+    }
+
+    return init;
+  }
+
+  /* Re-entrancy flag: if anything inside the patched call somehow
+     re-enters fetch, pass it through untouched. */
+  var inHook = false;
+  var origFetch = window.fetch;
+
+  window.fetch = function (input, init) {
+    if (inHook) return origFetch.call(this, input, init);
+    if (!isCartAdd(urlOf(input))) return origFetch.call(this, input, init);
+
+    inHook = true;
+    try {
+      return origFetch.call(this, input, patchInit(init));
+    } finally {
+      inHook = false;
+    }
+  };
+})();
+</script>
