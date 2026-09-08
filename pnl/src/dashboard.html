@@ -1,0 +1,567 @@
+<title>Blissta Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f6f4;
+  --surface: #ffffff;
+  --surface-2: #eceff0;
+  --ink: #0f1614;
+  --ink-2: #4a5552;
+  --muted: #7d8884;
+  --line: #dde2e0;
+  --line-2: #c4cbc8;
+  --accent: #1e56c9;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4ecfb;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --good: #0a7d0a;
+  --good-soft: #e3f3e3;
+  --warn: #a86a00;
+  --warn-soft: #fbefd6;
+  --crit: #c22f2f;
+  --crit-soft: #fae2e2;
+  --shadow: 0 1px 2px rgba(15,22,20,.06), 0 8px 24px -12px rgba(15,22,20,.18);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1211; --surface: #161b1a; --surface-2: #1f2524; --ink: #f2f4f3; --ink-2: #b8c0bd; --muted: #7f8a86;
+    --line: #262d2b; --line-2: #384140; --accent: #4f86e8; --accent-ink: #0b1220; --accent-soft: #1b2942;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --good: #37c237; --good-soft: #14301a; --warn: #f0b23a; --warn-soft: #3a2c10; --crit: #f06060; --crit-soft: #3c1818;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1211; --surface: #161b1a; --surface-2: #1f2524; --ink: #f2f4f3; --ink-2: #b8c0bd; --muted: #7f8a86;
+  --line: #262d2b; --line-2: #384140; --accent: #4f86e8; --accent-ink: #0b1220; --accent-soft: #1b2942;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good: #37c237; --good-soft: #14301a; --warn: #f0b23a; --warn-soft: #3a2c10; --crit: #f06060; --crit-soft: #3c1818;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+h1, h2, h3 { font-family: Manrope, "IBM Plex Sans", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+.num, .tbl td, .tbl th, .kpi-val { font-variant-numeric: tabular-nums; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1240px; margin: 0 auto; padding: 14px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.brand-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.brand .sub { color: var(--muted); font-size: 13px; }
+.status { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12.5px; flex-wrap: wrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: inline-block; }
+.dot.off { background: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px 10px; color: var(--ink-2); font-weight: 500; cursor: pointer; white-space: nowrap; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; gap: 20px; }
+section[hidden] { display: none; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.panel-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.panel-h h2 { font-size: 15px; font-weight: 700; }
+.panel-h .meta { color: var(--muted); font-size: 12.5px; }
+.grid { display: grid; gap: 20px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3-2 { grid-template-columns: 3fr 2fr; }
+@media (max-width: 860px) { .grid-2, .grid-3-2 { grid-template-columns: 1fr; } }
+
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 10px; display: grid; gap: 4px; grid-template-rows: auto auto auto 1fr; }
+.kpi-label { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.kpi-val { font-family: Manrope, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.kpi-delta { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.delta { font-weight: 600; }
+.delta.up { color: var(--good); } .delta.down { color: var(--crit); } .delta.flat { color: var(--muted); }
+.kpi svg { width: 100%; height: 34px; display: block; margin-top: 4px; }
+
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: 300px; display: block; }
+.chart text { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--muted); }
+.chart .grid-l { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--line-2); }
+.chart .l1 { stroke: var(--s1); fill: none; stroke-width: 2; stroke-linejoin: round; }
+.chart .l2 { stroke: var(--s2); fill: none; stroke-width: 2; stroke-linejoin: round; }
+.chart .a1 { fill: var(--s1); opacity: .10; }
+.chart .zero { stroke: var(--line-2); stroke-dasharray: 3 3; }
+.chart .cross { stroke: var(--line-2); stroke-width: 1; }
+.chart .pt { stroke: var(--surface); stroke-width: 2; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: var(--shadow); min-width: 150px; display: none; z-index: 3; }
+.tip b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+.tip .r { display: flex; justify-content: space-between; gap: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--surface); border: 0; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.alerts { display: grid; gap: 8px; }
+.alert { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+.alert:last-child { border-bottom: 0; }
+.alert .bar { height: 100%; min-height: 28px; border-radius: 2px; background: var(--warn); }
+.alert.critical .bar { background: var(--crit); } .alert.good .bar { background: var(--good); }
+.alert .t { font-weight: 600; } .alert .d { color: var(--muted); font-size: 12.5px; }
+.alert .v { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; text-align: right; }
+.alert.critical .v .delta { color: var(--crit); } .alert.warning .v .delta { color: var(--warn); } .alert.good .v .delta { color: var(--good); }
+
+.stack { display: grid; gap: 8px; }
+.stack-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--surface-2); }
+.stack-bar div { height: 100%; min-width: 2px; }
+.stack-key { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 14px; font-size: 12.5px; }
+.stack-key > span { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.stack-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: right; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+.tbl td:first-child { font-family: "IBM Plex Sans", sans-serif; font-size: 13px; }
+.tbl tr.sub td { font-weight: 600; background: var(--surface-2); }
+.tbl tr.total td { font-weight: 700; border-top: 2px solid var(--line-2); background: var(--surface-2); }
+.tbl tr.dim td { color: var(--muted); }
+.tbl td.neg { color: var(--crit); }
+.tbl td.pos { color: var(--good); }
+.tbl tr.group td { padding-top: 14px; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 0; }
+.tbl tbody tr:hover td { background: var(--accent-soft); }
+
+.hbars { display: grid; gap: 8px; }
+.hbar { display: grid; grid-template-columns: minmax(140px, 1.2fr) 3fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.hbar .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar .b { height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.hbar .b div { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; }
+.hbar .v { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+
+.form { display: grid; gap: 18px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.in { width: 100%; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--surface); color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; }
+.in-row { display: grid; grid-template-columns: 1fr 140px 32px; gap: 8px; align-items: center; }
+.in-row.four { grid-template-columns: 150px 110px 1fr 32px; }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { border-color: transparent; color: var(--accent); padding: 4px 8px; }
+.btn.x { padding: 4px 0; width: 32px; text-align: center; color: var(--muted); border-color: transparent; }
+.btn:hover { filter: brightness(1.04); }
+.form-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.form-h h3 { font-size: 14px; font-weight: 700; }
+.form-h .hint { font-size: 12px; color: var(--muted); }
+textarea.in { min-height: 90px; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.save-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.toast { font-size: 12.5px; color: var(--good); font-weight: 600; opacity: 0; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+.toast.err { color: var(--crit); }
+
+.report { white-space: pre-wrap; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.6; }
+.report strong { font-family: Manrope, sans-serif; font-size: 13.5px; }
+.report-list { display: grid; gap: 14px; }
+.report-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); }
+.report-item summary { cursor: pointer; font-weight: 600; font-family: Manrope, sans-serif; display: flex; justify-content: space-between; gap: 12px; }
+.report-item summary .meta { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+.empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+.note { font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand-row">
+    <div class="brand"><h1>Blissta Ledger</h1><span class="sub">Profit &amp; loss, every day</span></div>
+    <div class="status">
+      <span id="live"><span class="dot off"></span> Connecting</span>
+      <span id="asof"></span>
+      <span id="costs-state" class="pill warn" hidden>Placeholder costs</span>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" data-tab="pnl">P&amp;L</button>
+    <button class="tab" role="tab" data-tab="products">Products</button>
+    <button class="tab" role="tab" data-tab="costs">Costs</button>
+    <button class="tab" role="tab" data-tab="reports">Reports</button>
+  </nav>
+</div></header>
+
+<main>
+<section id="tab-overview" role="tabpanel">
+  <div class="grid">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid grid-3-2">
+      <div class="panel">
+        <div class="panel-h">
+          <div><h2>Revenue and net profit</h2><div class="legend"><span><i class="sw" style="background:var(--s1)"></i>Revenue</span><span><i class="sw" style="background:var(--s2)"></i>Net profit</span></div></div>
+          <div class="seg" id="range"><button aria-pressed="true" data-n="30">30 days</button><button data-n="90">90 days</button></div>
+        </div>
+        <div class="chart-wrap"><svg class="chart" id="main-chart" role="img" aria-label="Daily revenue and net profit"></svg><div class="tip" id="tip"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>Needs attention</h2><span class="meta" id="alert-meta"></span></div>
+        <div class="alerts" id="alerts"></div>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="panel">
+        <div class="panel-h"><h2>Where the money went</h2><span class="meta" id="stack-meta">Month to date</span></div>
+        <div class="stack" id="stack"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>Top products</h2><span class="meta">Net sales, last 30 days</span></div>
+        <div class="hbars" id="top-products"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-pnl" role="tabpanel" hidden>
+  <div class="panel">
+    <div class="panel-h">
+      <h2>Profit &amp; loss statement</h2>
+      <div class="seg" id="pnl-mode"><button aria-pressed="true" data-m="monthly">By month</button><button data-m="daily">By day, last 31</button></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="pnl-table"></table></div>
+    <p class="note" style="margin:12px 0 0">Revenue is Shopify total sales (net of discounts and refunds, plus shipping charged) plus any Amazon rows you add. COGS, shipping cost, fees, ad spend and fixed costs come from the Costs tab.</p>
+  </div>
+</section>
+
+<section id="tab-products" role="tabpanel" hidden>
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-h"><h2>Products, last 30 days</h2><span class="meta">Sorted by net sales</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="products-table"></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Order sources, last 30 days</h2><span class="meta">Shopify referrer</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="channels-table"></table></div>
+      <p class="note" style="margin:12px 0 0">Most orders show no referrer in Shopify, which usually means ad-driven traffic landing without UTM tags. Adding UTMs to every ad link will split this by channel.</p>
+    </div>
+  </div>
+</section>
+
+<section id="tab-costs" role="tabpanel" hidden>
+  <div class="panel">
+    <div class="panel-h"><h2>Costs</h2><span class="meta">Changes apply to every number the moment you save</span></div>
+    <form class="form" id="costs-form" onsubmit="return false">
+      <div>
+        <div class="form-h"><h3>Per order</h3><span class="hint">Applied to every Shopify order</span></div>
+        <div class="fgrid">
+          <div class="field"><label for="cogsPct">Cost of goods, % of net sales</label><input class="in" id="cogsPct" type="number" step="0.1" min="0" max="100"><span class="hint">Landed product cost. Per-product COGS comes later.</span></div>
+          <div class="field"><label for="shippingCostPerOrder">Shipping cost per order, $</label><input class="in" id="shippingCostPerOrder" type="number" step="0.01" min="0"><span class="hint">Carrier plus 3PL pick and pack.</span></div>
+          <div class="field"><label for="feePct">Payment fee, %</label><input class="in" id="feePct" type="number" step="0.01" min="0"></div>
+          <div class="field"><label for="feeFixed">Payment fee, fixed per order $</label><input class="in" id="feeFixed" type="number" step="0.01" min="0"></div>
+        </div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Ad spend, default per day</h3><span class="hint">Used for any day without an override below</span></div>
+        <div class="fgrid">
+          <div class="field"><label for="ad_meta">Meta $</label><input class="in" id="ad_meta" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_google">Google $</label><input class="in" id="ad_google" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_tiktok">TikTok $</label><input class="in" id="ad_tiktok" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_other">Other $</label><input class="in" id="ad_other" type="number" step="1" min="0"></div>
+        </div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Ad spend overrides by day</h3><button class="btn ghost" type="button" id="add-override">+ Add a day</button></div>
+        <div class="stack" id="overrides"></div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Fixed monthly costs</h3><button class="btn ghost" type="button" id="add-fixed">+ Add a line</button></div>
+        <div class="stack" id="fixed"></div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Amazon</h3><span class="hint">Paste rows from a Seller Central export. Live sync comes later.</span></div>
+        <div class="field">
+          <label for="amazon">One row per day: date, revenue, refunds, fees, ad spend, cogs</label>
+          <textarea class="in" id="amazon" placeholder="2026-09-01, 4200.50, 120.00, 630.10, 800, 1260"></textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="btn primary" type="button" id="save-costs">Save costs</button>
+        <button class="btn" type="button" id="reset-costs">Reset to placeholders</button>
+        <span class="toast" id="toast"></span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-reports" role="tabpanel" hidden>
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-h"><h2>Report preview from current numbers</h2><span class="meta" id="preview-meta"></span></div>
+      <div class="report" id="report-preview"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Morning reports</h2><span class="meta">Sent every day, newest first</span></div>
+      <div class="report-list" id="report-list"><div class="empty">No reports sent yet.</div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/*__PNL_LIB__*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var SNAPSHOT = /*__SNAPSHOT__*/null;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var state = { shopify: SNAPSHOT ? SNAPSHOT.shopify : null, refreshedAt: SNAPSHOT ? SNAPSHOT.refreshedAt : null, asOf: SNAPSHOT ? SNAPSHOT.asOf : null,
+                costs: null, reports: [], range: 30, pnlMode: 'monthly', db: null };
+  var fm = PNL.fmtMoney, fp = PNL.fmtPct, fc = PNL.fmtChange;
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pctIn(v) { return Math.round(v * 10000) / 100; }
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', t === b); });
+      document.querySelectorAll('[role=tabpanel]').forEach(function (p) { p.hidden = p.id !== 'tab-' + b.dataset.tab; });
+      lsSet('ledger.tab', b.dataset.tab);
+      if (b.dataset.tab === 'overview') drawChart();
+    });
+  });
+  var savedTab = lsGet('ledger.tab'); if (savedTab) { var tb = $('.tab[data-tab="' + savedTab + '"]'); if (tb) tb.click(); }
+
+  /* ---------- derived ---------- */
+  function costs() { return Object.assign({}, PNL.DEFAULT_COSTS, state.costs || {}); }
+  function daily() { return state.shopify ? PNL.computeDaily(state.shopify.days, costs()) : []; }
+  function complete(rows) { var t = today(); return rows.filter(function (r) { return r.date < t; }); }
+
+  function renderAll() {
+    if (!state.shopify) return;
+    $('#asof').textContent = 'Shopify data through ' + (state.asOf || '') + (state.refreshedAt ? ', refreshed ' + new Date(state.refreshedAt).toLocaleString() : '');
+    $('#costs-state').hidden = !!(state.costs && state.costs.confirmed);
+    renderKpis(); drawChart(); renderAlerts(); renderStack(); renderTopProducts();
+    renderPnl(); renderProducts(); renderChannels(); renderPreview();
+  }
+
+  /* ---------- KPIs ---------- */
+  function spark(vals, cls) {
+    var w = 120, h = 34, n = vals.length; if (n < 2) return '';
+    var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals); if (mx === mn) mx = mn + 1;
+    var pts = vals.map(function (v, i) { return [(i / (n - 1)) * w, h - 3 - ((v - mn) / (mx - mn)) * (h - 6)]; });
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
+    var last = pts[n - 1];
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true"><path d="' + d + '" fill="none" stroke="var(' + cls + ')" stroke-width="1.5"/><circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="2.5" fill="var(' + cls + ')"/></svg>';
+  }
+  function deltaHtml(cur, base, invert) {
+    var ch = PNL.pctChange(cur, base); var cls = Math.abs(ch) < 0.02 ? 'flat' : ((ch > 0) !== !!invert ? 'up' : 'down');
+    return '<span class="delta ' + cls + '">' + fc(ch) + '</span>';
+  }
+  function renderKpis() {
+    var rows = complete(daily()); if (rows.length < 8) return;
+    var y = rows[rows.length - 1], prev7 = PNL.sumRows(rows.slice(-8, -1), 'p7');
+    var l7 = PNL.sumRows(rows.slice(-7), 'l7'), p7 = PNL.sumRows(rows.slice(-14, -7), 'p7');
+    var m = y.date.slice(0, 7), mtd = PNL.sumRows(rows.filter(function (r) { return r.date.slice(0, 7) === m; }), 'mtd');
+    var last14 = rows.slice(-14);
+    var tiles = [
+      { l: 'Yesterday revenue', v: fm(y.revenue), d: deltaHtml(y.revenue, prev7.revenue / 7) + ' vs 7-day avg', s: spark(last14.map(function (r) { return r.revenue; }), '--s1') },
+      { l: 'Yesterday net profit', v: fm(y.netProfit), d: deltaHtml(y.netProfit, prev7.netProfit / 7) + ' vs 7-day avg', s: spark(last14.map(function (r) { return r.netProfit; }), '--s2') },
+      { l: 'Last 7 days revenue', v: fm(l7.revenue), d: deltaHtml(l7.revenue, p7.revenue) + ' vs prior 7', s: spark(rows.slice(-28).map(function (r) { return r.revenue; }), '--s1') },
+      { l: 'Month to date profit', v: fm(mtd.netProfit), d: 'margin <span class="delta ' + (mtd.margin >= 0.1 ? 'up' : mtd.margin >= 0 ? 'flat' : 'down') + '">' + fp(mtd.margin) + '</span> on ' + fm(mtd.revenue), s: spark(rows.filter(function (r) { return r.date.slice(0, 7) === m; }).map(function (r) { return r.netProfit; }), '--s2') },
+      { l: 'Yesterday ROAS', v: y.roas.toFixed(2) + 'x', d: deltaHtml(y.roas, prev7.roas) + ' · CAC ' + fm(y.cac), s: spark(last14.map(function (r) { return r.roas; }), '--s3') }
+    ];
+    $('#kpis').innerHTML = tiles.map(function (t) { return '<div class="kpi"><div class="kpi-label">' + t.l + '</div><div class="kpi-val">' + t.v + '</div><div class="kpi-delta">' + t.d + '</div>' + t.s + '</div>'; }).join('');
+  }
+
+  /* ---------- main chart ---------- */
+  var chartRows = [];
+  function drawChart() {
+    var svg = $('#main-chart'); if (!svg || svg.closest('section').hidden) return;
+    var rows = complete(daily()).slice(-state.range); chartRows = rows; if (!rows.length) return;
+    var W = svg.clientWidth || 700, H = 300, pl = 56, pr = 20, pt = 14, pb = 28;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var vals = []; rows.forEach(function (r) { vals.push(r.revenue, r.netProfit); });
+    var mn = Math.min(0, Math.min.apply(null, vals)), mx = Math.max.apply(null, vals) * 1.05;
+    var step = niceStep((mx - mn) / 5); mn = Math.floor(mn / step) * step; mx = Math.ceil(mx / step) * step;
+    var x = function (i) { return pl + (i / (rows.length - 1)) * (W - pl - pr); };
+    var y = function (v) { return pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb); };
+    var out = [];
+    for (var v = mn; v <= mx + 1e-6; v += step) {
+      out.push('<line class="grid-l" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>');
+      out.push('<text x="' + (pl - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + tick(v) + '</text>');
+    }
+    if (mn < 0) out.push('<line class="zero" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>');
+    var every = rows.length > 40 ? 14 : 7;
+    rows.forEach(function (r, i) { if ((rows.length - 1 - i) % every === 0) out.push('<text x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (i === rows.length - 1 ? 'end' : i === 0 ? 'start' : 'middle') + '">' + r.date.slice(5) + '</text>'); });
+    var p1 = rows.map(function (r, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(r.revenue).toFixed(1); }).join('');
+    var p2 = rows.map(function (r, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(r.netProfit).toFixed(1); }).join('');
+    out.push('<path class="a1" d="' + p1 + 'L' + x(rows.length - 1).toFixed(1) + ' ' + y(Math.max(0, mn)).toFixed(1) + 'L' + pl + ' ' + y(Math.max(0, mn)).toFixed(1) + 'Z"/>');
+    out.push('<path class="l1" d="' + p1 + '"/><path class="l2" d="' + p2 + '"/>');
+    var L = rows[rows.length - 1];
+    out.push('<circle class="pt" cx="' + x(rows.length - 1).toFixed(1) + '" cy="' + y(L.revenue).toFixed(1) + '" r="4" fill="var(--s1)"/><circle class="pt" cx="' + x(rows.length - 1).toFixed(1) + '" cy="' + y(L.netProfit).toFixed(1) + '" r="4" fill="var(--s2)"/>');
+    out.push('<g id="hover"></g><rect x="' + pl + '" y="' + pt + '" width="' + (W - pl - pr) + '" height="' + (H - pt - pb) + '" fill="transparent" id="hit"/>');
+    svg.innerHTML = out.join('');
+    var hit = $('#hit', svg), hover = $('#hover', svg), tip = $('#tip');
+    function move(ev) {
+      var rect = svg.getBoundingClientRect(); var px = (ev.clientX - rect.left) * (W / rect.width);
+      var i = Math.round(((px - pl) / (W - pl - pr)) * (rows.length - 1)); i = Math.max(0, Math.min(rows.length - 1, i));
+      var r = rows[i], cx = x(i);
+      hover.innerHTML = '<line class="cross" x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + pt + '" y2="' + (H - pb) + '"/><circle class="pt" cx="' + cx.toFixed(1) + '" cy="' + y(r.revenue).toFixed(1) + '" r="4" fill="var(--s1)"/><circle class="pt" cx="' + cx.toFixed(1) + '" cy="' + y(r.netProfit).toFixed(1) + '" r="4" fill="var(--s2)"/>';
+      tip.style.display = 'block';
+      tip.innerHTML = '<div class="r"><span>' + r.date + '</span><span>' + r.orders + ' orders</span></div><div class="r"><span>Revenue</span><b>' + fm(r.revenue) + '</b></div><div class="r"><span>Ad spend</span><b>' + fm(r.adSpend) + '</b></div><div class="r"><span>Net profit</span><b>' + fm(r.netProfit) + '</b></div><div class="r"><span>Margin</span><b>' + fp(r.margin) + '</b></div>';
+      var left = (cx / W) * rect.width; var tw = tip.offsetWidth;
+      tip.style.left = (left + 14 + tw > rect.width ? left - tw - 14 : left + 14) + 'px'; tip.style.top = '10px';
+    }
+    hit.addEventListener('mousemove', move); hit.addEventListener('touchmove', function (e) { move(e.touches[0]); }, { passive: true });
+    hit.addEventListener('mouseleave', function () { hover.innerHTML = ''; tip.style.display = 'none'; });
+  }
+  function niceStep(raw) { var p = Math.pow(10, Math.floor(Math.log10(raw))); var f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+  function tick(v) { var a = Math.abs(v); var s = a >= 1000 ? (a / 1000).toFixed(a % 1000 ? 1 : 0) + 'k' : String(Math.round(a)); return (v < 0 ? '-$' : '$') + s; }
+  $('#range').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; state.range = +b.dataset.n; $('#range').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); drawChart(); });
+  var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(drawChart, 120); });
+
+  /* ---------- alerts ---------- */
+  function renderAlerts() {
+    var an = PNL.detectAnomalies(daily(), today());
+    $('#alert-meta').textContent = an.yesterday ? an.yesterday.date + ' vs trailing 7 days' : '';
+    if (!an.flags.length) { $('#alerts').innerHTML = '<div class="empty">Nothing outside normal range yesterday.</div>'; return; }
+    $('#alerts').innerHTML = an.flags.map(function (f) {
+      var v = f.money ? fm(f.value) : f.pct ? fp(f.value) : f.key === 'roas' ? f.value.toFixed(2) + 'x' : Math.round(f.value);
+      var b = f.money ? fm(f.baseline) : f.pct ? fp(f.baseline) : f.key === 'roas' ? f.baseline.toFixed(2) + 'x' : Math.round(f.baseline);
+      return '<div class="alert ' + f.severity + '"><div class="bar"></div><div><div class="t">' + f.label + '</div><div class="d">' + (f.severity === 'good' ? 'Better than usual' : f.severity === 'critical' ? 'Well outside normal' : 'Outside normal') + ', 7-day avg ' + b + '</div></div><div class="v">' + v + '<br><span class="delta">' + fc(f.change) + '</span></div></div>';
+    }).join('');
+  }
+
+  /* ---------- cost stack ---------- */
+  function renderStack() {
+    var rows = complete(daily()); if (!rows.length) return;
+    var m = rows[rows.length - 1].date.slice(0, 7); var s = PNL.sumRows(rows.filter(function (r) { return r.date.slice(0, 7) === m; }), 'mtd');
+    $('#stack-meta').textContent = 'Month to date, ' + fm(s.revenue) + ' revenue';
+    var parts = [['COGS', s.cogs, 'var(--s2)'], ['Ad spend', s.adSpend, 'var(--s3)'], ['Shipping', s.shippingCost, '#8a6cd9'], ['Fees', s.fees, '#b59a2d'], ['Fixed', s.fixed, '#8b9a95'], ['Net profit', Math.max(0, s.netProfit), 'var(--s1)']];
+    var total = parts.reduce(function (a, p) { return a + p[1]; }, 0) || 1;
+    $('#stack').innerHTML = '<div class="stack-bar">' + parts.map(function (p) { return '<div style="width:' + (p[1] / total * 100).toFixed(2) + '%;background:' + p[2] + '" title="' + p[0] + '"></div>'; }).join('') + '</div><div class="stack-key">' +
+      parts.map(function (p) { return '<span><span><i style="background:' + p[2] + '"></i>' + p[0] + '</span><b class="num">' + fm(p[1]) + ' · ' + fp(p[1] / (s.revenue || 1), 0) + '</b></span>'; }).join('') + '</div>' +
+      (s.netProfit < 0 ? '<div class="note">Net loss of ' + fm(-s.netProfit) + ' month to date with current cost settings.</div>' : '');
+  }
+
+  /* ---------- products & channels ---------- */
+  function realProducts() { return (state.shopify.products || []).filter(function (p) { return p.title !== 'Untitled / bundle lines'; }).sort(function (a, b) { return b.net - a.net; }); }
+  function renderTopProducts() {
+    var ps = realProducts().slice(0, 8); var mx = ps.length ? ps[0].net : 1;
+    $('#top-products').innerHTML = ps.map(function (p) { return '<div class="hbar"><div class="n" title="' + esc(p.title) + '">' + esc(p.title.replace(/Blissta®\s*/i, '')) + '</div><div class="b"><div style="width:' + (p.net / mx * 100).toFixed(1) + '%"></div></div><div class="v">' + fm(p.net) + '</div></div>'; }).join('');
+  }
+  function renderProducts() {
+    var ps = realProducts(); var untitled = (state.shopify.products || []).filter(function (p) { return p.title === 'Untitled / bundle lines'; })[0];
+    var h = '<thead><tr><th>Product</th><th>Gross</th><th>Net</th><th>Orders</th><th>Net / order</th></tr></thead><tbody>';
+    h += ps.map(function (p) { return '<tr><td>' + esc(p.title) + '</td><td>' + fm(p.gross) + '</td><td>' + fm(p.net) + '</td><td>' + p.orders + '</td><td>' + fm(p.orders ? p.net / p.orders : 0) + '</td></tr>'; }).join('');
+    if (untitled) h += '<tr class="dim"><td>Lines with no product title (bundles, deleted products, subscriptions)</td><td>' + fm(untitled.gross) + '</td><td>' + fm(untitled.net) + '</td><td>' + untitled.orders + '</td><td>' + fm(untitled.orders ? untitled.net / untitled.orders : 0) + '</td></tr>';
+    $('#products-table').innerHTML = h + '</tbody>';
+  }
+  function renderChannels() {
+    var cs = (state.shopify.channels || []).slice().sort(function (a, b) { return b.sales - a.sales; }); var tot = cs.reduce(function (a, c) { return a + c.sales; }, 0) || 1;
+    $('#channels-table').innerHTML = '<thead><tr><th>Source</th><th>Orders</th><th>Sales</th><th>Share</th></tr></thead><tbody>' + cs.map(function (c) { return '<tr><td>' + esc(c.source) + '</td><td>' + c.orders + '</td><td>' + fm(c.sales) + '</td><td>' + fp(c.sales / tot, 0) + '</td></tr>'; }).join('') + '</tbody>';
+  }
+
+  /* ---------- P&L table ---------- */
+  var LINES = [
+    ['group', 'Sales'], ['gross', 'Gross sales'], ['discounts', 'Discounts', -1], ['refunds', 'Refunds', -1], ['shopifyRevenue', 'Shopify revenue', 0, 'sub'], ['amazonRevenue', 'Amazon revenue'], ['revenue', 'Total revenue', 0, 'sub'],
+    ['group', 'Variable costs'], ['cogs', 'Cost of goods', -1], ['shippingCost', 'Shipping cost', -1], ['fees', 'Payment fees', -1], ['adSpend', 'Ad spend', -1], ['contribution', 'Contribution profit', 0, 'sub'],
+    ['group', 'Fixed costs'], ['fixed', 'Fixed costs', -1], ['netProfit', 'Net profit', 0, 'total'],
+    ['group', 'Ratios'], ['margin', 'Net margin', 'pct'], ['roas', 'ROAS', 'x'], ['refundRate', 'Refund rate', 'pct'], ['orders', 'Orders', 'int'], ['aov', 'Average order value'], ['newCustomers', 'New customers', 'int'], ['cac', 'Cost per new customer']
+  ];
+  function cell(v, kind) {
+    if (kind === 'pct') return '<td class="' + (v < 0 ? 'neg' : '') + '">' + fp(v) + '</td>';
+    if (kind === 'x') return '<td>' + v.toFixed(2) + 'x</td>';
+    if (kind === 'int') return '<td>' + Math.round(v).toLocaleString('en-US') + '</td>';
+    if (kind === -1) return '<td>' + (v ? '(' + fm(v).replace('$', '') + ')' : '0.00') + '</td>';
+    return '<td class="' + (v < 0 ? 'neg' : '') + '">' + fm(v) + '</td>';
+  }
+  function renderPnl() {
+    var rows = daily(); var cols;
+    if (state.pnlMode === 'monthly') { cols = PNL.computeMonthly(complete(rows)); }
+    else { cols = complete(rows).slice(-31).reverse(); }
+    var h = '<thead><tr><th>' + (state.pnlMode === 'monthly' ? 'Line' : 'Line') + '</th>' + cols.map(function (c) { return '<th>' + (c.label ? monthName(c.label) + (c.days < 28 ? ' <span style="font-weight:400">(' + c.days + 'd)</span>' : '') : c.date) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    LINES.forEach(function (L) {
+      if (L[0] === 'group') { h += '<tr class="group"><td colspan="' + (cols.length + 1) + '">' + L[1] + '</td></tr>'; return; }
+      h += '<tr class="' + (L[3] || '') + '"><td>' + L[1] + '</td>' + cols.map(function (c) { return cell(c[L[0]] || 0, L[2]); }).join('') + '</tr>';
+    });
+    $('#pnl-table').innerHTML = h + '</tbody>';
+  }
+  function monthName(m) { return new Date(m + '-15T00:00:00Z').toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }); }
+  $('#pnl-mode').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; state.pnlMode = b.dataset.m; $('#pnl-mode').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); renderPnl(); });
+
+  /* ---------- costs form ---------- */
+  function fillForm() {
+    var c = costs();
+    $('#cogsPct').value = pctIn(c.cogsPct); $('#shippingCostPerOrder').value = c.shippingCostPerOrder; $('#feePct').value = pctIn(c.feePct); $('#feeFixed').value = c.feeFixed;
+    ['meta', 'google', 'tiktok', 'other'].forEach(function (k) { $('#ad_' + k).value = c.adDaily[k] || 0; });
+    $('#fixed').innerHTML = (c.fixedMonthly || []).map(fixedRow).join('');
+    $('#overrides').innerHTML = Object.keys(c.adOverrides || {}).sort().map(function (d) { var o = c.adOverrides[d]; return ['meta', 'google', 'tiktok', 'other'].filter(function (k) { return o[k] != null; }).map(function (k) { return overrideRow(d, k, o[k]); }).join(''); }).join('');
+    $('#amazon').value = (c.amazon || []).map(function (a) { return [a.date, a.revenue, a.refunds, a.fees, a.adSpend, a.cogs].join(', '); }).join('\n');
+  }
+  function fixedRow(f) { return '<div class="in-row"><input class="in f-name" placeholder="Name" value="' + esc(f.name || '') + '"><input class="in f-amt" type="number" step="1" min="0" placeholder="$ / month" value="' + (f.amount || 0) + '"><button class="btn x" type="button" title="Remove">×</button></div>'; }
+  function overrideRow(d, k, v) { return '<div class="in-row four"><input class="in o-date" type="date" value="' + esc(d || '') + '"><select class="in o-ch">' + ['meta', 'google', 'tiktok', 'other'].map(function (c) { return '<option' + (c === k ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select><input class="in o-amt" type="number" step="1" min="0" placeholder="$ that day" value="' + (v != null ? v : '') + '"><button class="btn x" type="button" title="Remove">×</button></div>'; }
+  $('#add-fixed').addEventListener('click', function () { $('#fixed').insertAdjacentHTML('beforeend', fixedRow({})); });
+  $('#add-override').addEventListener('click', function () { $('#overrides').insertAdjacentHTML('beforeend', overrideRow(today(), 'meta', '')); });
+  $('#costs-form').addEventListener('click', function (e) { if (e.target.classList.contains('x')) e.target.closest('.in-row').remove(); });
+  function readForm() {
+    var c = {
+      confirmed: true, cogsPct: (+$('#cogsPct').value || 0) / 100, shippingCostPerOrder: +$('#shippingCostPerOrder').value || 0, feePct: (+$('#feePct').value || 0) / 100, feeFixed: +$('#feeFixed').value || 0,
+      adDaily: {}, adOverrides: {}, fixedMonthly: [], amazon: [], updatedAt: new Date().toISOString()
+    };
+    ['meta', 'google', 'tiktok', 'other'].forEach(function (k) { c.adDaily[k] = +$('#ad_' + k).value || 0; });
+    $('#fixed').querySelectorAll('.in-row').forEach(function (r) { var n = $('.f-name', r).value.trim(); if (n) c.fixedMonthly.push({ name: n, amount: +$('.f-amt', r).value || 0 }); });
+    $('#overrides').querySelectorAll('.in-row').forEach(function (r) { var d = $('.o-date', r).value, k = $('.o-ch', r).value, v = $('.o-amt', r).value; if (d && v !== '') { c.adOverrides[d] = c.adOverrides[d] || {}; c.adOverrides[d][k] = +v; } });
+    $('#amazon').value.split('\n').forEach(function (line) { var p = line.split(',').map(function (s) { return s.trim(); }); if (p.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(p[0])) c.amazon.push({ date: p[0], revenue: +p[1] || 0, refunds: +p[2] || 0, fees: +p[3] || 0, adSpend: +p[4] || 0, cogs: +p[5] || 0 }); });
+    return c;
+  }
+  function toast(msg, err) { var t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
+  $('#save-costs').addEventListener('click', function () {
+    var c = readForm(); state.costs = c; lsSet('ledger.costs', c); renderAll();
+    if (state.db) state.db.doc('config/costs').set(c).then(function () { toast('Saved. Every number is updated.'); }, function (e) { toast('Saved on this device only. ' + (e.message || ''), true); });
+    else toast('Saved on this device. Open inside Claude to sync it everywhere.');
+  });
+  $('#reset-costs').addEventListener('click', function () { state.costs = null; fillForm(); });
+
+  /* ---------- reports ---------- */
+  function mdToHtml(t) { return esc(t).replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/_([^_\n]+)_/g, '<em>$1</em>').replace(/:red_circle:/g, '🔴').replace(/:large_orange_circle:/g, '🟠').replace(/:large_green_circle:/g, '🟢'); }
+  function renderPreview() {
+    var r = PNL.buildReport({ daily: daily(), asOf: today(), products: realProducts(), costs: costs() });
+    $('#preview-meta').textContent = r.yesterday ? 'As it would read for ' + r.yesterday.date : '';
+    $('#report-preview').innerHTML = mdToHtml(r.text);
+  }
+  function renderReports() {
+    if (!state.reports.length) { $('#report-list').innerHTML = '<div class="empty">No reports sent yet. The first one goes out tomorrow morning.</div>'; return; }
+    $('#report-list').innerHTML = state.reports.map(function (r, i) { return '<details class="report-item"' + (i === 0 ? ' open' : '') + '><summary><span>' + esc(r.title || r.date) + '</span><span class="meta">' + (r.sentAt ? new Date(r.sentAt).toLocaleString() : '') + '</span></summary><div class="report" style="margin-top:10px">' + mdToHtml(r.text || '') + '</div></details>'; }).join('');
+  }
+
+  /* ---------- boot ---------- */
+  state.costs = lsGet('ledger.costs'); fillForm(); renderAll(); renderReports();
+  window.claude && window.claude.use && window.claude.use('db').then(function (db) {
+    if (!db) { $('#live').innerHTML = '<span class="dot off"></span> Snapshot, not live'; return; }
+    state.db = db;
+    db.doc('shopify/daily').onSnapshot(function (s) {
+      if (!s.exists) return; var d = s.data();
+      state.shopify = d.shopify; state.refreshedAt = d.refreshedAt; state.asOf = d.asOf; renderAll();
+      $('#live').innerHTML = '<span class="dot"></span> Live';
+    }, function (e) { $('#live').innerHTML = '<span class="dot off"></span> ' + esc(e.message); });
+    db.doc('config/costs').onSnapshot(function (s) { if (s.exists) { state.costs = s.data(); lsSet('ledger.costs', state.costs); fillForm(); renderAll(); } });
+    db.collection('reports').orderBy('date', 'desc').limit(60).onSnapshot(function (q) { state.reports = q.docs.map(function (d) { return d.data(); }); renderReports(); });
+  }).catch(function () {});
+})();
+</script>
