@@ -27,18 +27,23 @@ async function threadHistory(client, channel, ts) {
   return hist.slice(-20);
 }
 
+const botThreads = new Set();
+
 async function handle({ event, client, say }) {
   const text = strip(event.text);
-  if (!text) return;
+  if (!text && !event.thread_ts) return;
   const tier = OWNERS.has(event.user) ? 'owner' : 'team';
   const thread_ts = event.thread_ts || event.ts;
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
   let history;
   try { history = event.thread_ts ? await threadHistory(client, event.channel, event.thread_ts) : [{ role: 'user', content: text }]; }
   catch { history = [{ role: 'user', content: text }]; }
-  if (!history.length || history[history.length - 1].role !== 'user') history.push({ role: 'user', content: text });
+  if (!history.length || history[history.length - 1].role !== 'user') history.push({ role: 'user', content: text || '(continue)' });
+  const where = event.channel_type === 'im' ? 'a direct message' : 'the Slack channel <#' + event.channel + '>' + (event.thread_ts ? ', inside a thread' : '');
+  history[history.length - 1].content = '[Context: this message was sent in ' + where + '. "This channel" means that Slack channel.]\n' + history[history.length - 1].content;
   try {
     const r = await answer({ history, tier });
+    botThreads.add(thread_ts);
     let out = r.text;
     if (r.flags.length && tier === 'owner') out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
     await say({ text: out, thread_ts });
@@ -49,7 +54,17 @@ async function handle({ event, client, say }) {
 }
 
 app.event('app_mention', handle);
-app.message(async (args) => { if (args.event.channel_type === 'im' && !args.event.bot_id) await handle(args); });
+app.message(async (args) => {
+  const e = args.event;
+  if (e.bot_id || e.subtype) return;
+  if (e.channel_type === 'im') return handle(args);
+  if (e.thread_ts && (e.text || '').indexOf('<@' + botUserId + '>') < 0) {
+    if (!botThreads.has(e.thread_ts)) {
+      try { const r = await args.client.conversations.replies({ channel: e.channel, ts: e.thread_ts, limit: 50 }); if ((r.messages || []).some((m) => m.user === botUserId)) botThreads.add(e.thread_ts); } catch { /* no history scope */ }
+    }
+    if (botThreads.has(e.thread_ts)) return handle(args);
+  }
+});
 
 (async () => {
   await app.start();
