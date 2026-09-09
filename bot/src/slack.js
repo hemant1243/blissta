@@ -5,7 +5,9 @@ const { answer, reload } = require('./answer');
 const { BOT } = require('./brain');
 
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
-const app = new App({ token: process.env.SLACK_BOT_TOKEN, signingSecret: process.env.SLACK_SIGNING_SECRET, appToken: process.env.SLACK_APP_TOKEN, socketMode: true });
+const { LogLevel } = require('@slack/bolt');
+const app = new App({ token: process.env.SLACK_BOT_TOKEN, signingSecret: process.env.SLACK_SIGNING_SECRET, appToken: process.env.SLACK_APP_TOKEN, socketMode: true, logLevel: LogLevel.INFO });
+app.use(async ({ body, next }) => { const t = body && (body.event ? body.event.type + (body.event.channel_type ? ':' + body.event.channel_type : '') : body.type); console.log('[event]', t, 'from', body && body.event && body.event.user); await next(); });
 let botUserId = null;
 
 const strip = (t) => (t || '').replace(/<@[A-Z0-9]+>/g, '').trim();
@@ -54,4 +56,5 @@ app.message(async (args) => { if (args.event.channel_type === 'im' && !args.even
   const auth = await app.client.auth.test();
   botUserId = auth.user_id;
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
+  try { const c = await app.client.apps.connections.open({ token: process.env.SLACK_APP_TOKEN }); console.log('[socket] app token ok, url issued:', !!c.url); } catch (e) { console.error('[socket] app token check failed:', e.data ? e.data.error : e.message); }
 })();
