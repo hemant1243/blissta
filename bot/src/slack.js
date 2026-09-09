@@ -29,6 +29,14 @@ async function threadHistory(client, channel, ts) {
 
 const botThreads = new Set();
 
+async function probeModel() {
+  const t0 = Date.now();
+  try {
+    const r = await answer({ history: [{ role: 'user', content: 'Reply with the single word: ready' }], tier: 'team' });
+    console.log('[probe] model reachable in', (Date.now() - t0) + 'ms:', JSON.stringify(r.text.slice(0, 40)));
+  } catch (e) { console.error('[probe] model call failed after', (Date.now() - t0) + 'ms:', e.status || '', e.message); }
+}
+
 async function handle({ event, client, say }) {
   const text = strip(event.text);
   if (!text && !event.thread_ts) return;
@@ -41,15 +49,18 @@ async function handle({ event, client, say }) {
   if (!history.length || history[history.length - 1].role !== 'user') history.push({ role: 'user', content: text || '(continue)' });
   const where = event.channel_type === 'im' ? 'a direct message' : 'the Slack channel <#' + event.channel + '>' + (event.thread_ts ? ', inside a thread' : '');
   history[history.length - 1].content = '[Context: this message was sent in ' + where + '. "This channel" means that Slack channel.]\n' + history[history.length - 1].content;
+  const t0 = Date.now();
+  console.log('[ask]', tier, event.channel, 'turns', history.length, JSON.stringify((text || '(continue)').slice(0, 80)));
   try {
     const r = await answer({ history, tier });
     botThreads.add(thread_ts);
     let out = r.text;
     if (r.flags.length && tier === 'owner') out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
-    await say({ text: out, thread_ts });
+    const res = await say({ text: out, thread_ts });
+    console.log('[reply]', (Date.now() - t0) + 'ms', 'chars', out.length, 'posted', !!(res && res.ok));
   } catch (e) {
-    console.error(e);
-    await say({ text: `${BOT} hit an error. ${e.status || ''} ${e.message || ''}`.trim(), thread_ts });
+    console.error('[error]', (Date.now() - t0) + 'ms', e.status || '', e.message || e);
+    try { await say({ text: `${BOT} hit an error. ${e.status || ''} ${e.message || ''}`.trim(), thread_ts }); } catch (e2) { console.error('[error] could not post error:', e2.message); }
   }
 }
 
@@ -71,5 +82,5 @@ app.message(async (args) => {
   const auth = await app.client.auth.test();
   botUserId = auth.user_id;
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
-  try { const c = await app.client.apps.connections.open({ token: process.env.SLACK_APP_TOKEN }); console.log('[socket] app token ok, url issued:', !!c.url); } catch (e) { console.error('[socket] app token check failed:', e.data ? e.data.error : e.message); }
+  probeModel();
 })();
