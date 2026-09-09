@@ -12,9 +12,8 @@ let botUserId = null;
 
 const strip = (t) => (t || '').replace(/<@[A-Z0-9]+>/g, '').trim();
 
-async function threadHistory(client, channel, ts) {
-  const res = await client.conversations.replies({ channel, ts, limit: 40 });
-  const msgs = (res.messages || []).filter((m) => m.text && !m.subtype);
+function toTurns(msgs) {
+  msgs = msgs.filter((m) => m.text && !m.subtype);
   const hist = [];
   for (const m of msgs) {
     const role = m.user === botUserId || m.bot_id ? 'assistant' : 'user';
@@ -25,6 +24,17 @@ async function threadHistory(client, channel, ts) {
   }
   if (hist.length && hist[0].role === 'assistant') hist.shift();
   return hist.slice(-20);
+}
+
+async function threadHistory(client, channel, ts) {
+  const res = await client.conversations.replies({ channel, ts, limit: 40 });
+  return toTurns(res.messages || []);
+}
+
+/* Last 20 top-level DM messages, oldest first, as alternating turns. */
+async function dmHistory(client, channel) {
+  const r = await client.conversations.history({ channel, limit: 20 });
+  return toTurns((r.messages || []).slice().reverse());
 }
 
 const botThreads = new Set();
@@ -41,10 +51,16 @@ async function handle({ event, client, say }) {
   const text = strip(event.text);
   if (!text && !event.thread_ts) return;
   const tier = OWNERS.has(event.user) ? 'owner' : 'team';
-  const thread_ts = event.thread_ts || event.ts;
+  const isDM = event.channel_type === 'im';
+  /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
+  const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
   let history;
-  try { history = event.thread_ts ? await threadHistory(client, event.channel, event.thread_ts) : [{ role: 'user', content: text }]; }
+  try {
+    if (event.thread_ts) history = await threadHistory(client, event.channel, event.thread_ts);
+    else if (isDM) history = await dmHistory(client, event.channel);
+    else history = [{ role: 'user', content: text }];
+  }
   catch { history = [{ role: 'user', content: text }]; }
   if (!history.length || history[history.length - 1].role !== 'user') history.push({ role: 'user', content: text || '(continue)' });
   const where = event.channel_type === 'im' ? 'a direct message' : 'the Slack channel <#' + event.channel + '>' + (event.thread_ts ? ', inside a thread' : '');
@@ -53,7 +69,7 @@ async function handle({ event, client, say }) {
   console.log('[ask]', tier, event.channel, 'turns', history.length, JSON.stringify((text || '(continue)').slice(0, 80)));
   try {
     const r = await answer({ history, tier });
-    botThreads.add(thread_ts);
+    if (thread_ts) botThreads.add(thread_ts);
     let out = r.text;
     if (r.flags.length && tier === 'owner') out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
     const res = await say({ text: out, thread_ts });
