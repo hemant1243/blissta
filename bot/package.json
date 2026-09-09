@@ -1,0 +1,18 @@
+{
+  "name": "donnaa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Donnaa, the Blissta team bot. Slack front door, Claude brain, operator handbook as knowledge.",
+  "main": "src/slack.js",
+  "scripts": {
+    "start": "node src/slack.js",
+    "ask": "node src/ask.js",
+    "check": "node -e \"require('./src/brain');require('./src/guard');console.log('ok')\""
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@slack/bolt": "^4.2.0",
+    "dotenv": "^16.4.5"
+  }
+}
