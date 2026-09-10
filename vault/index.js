@@ -93,10 +93,11 @@ for (const f of media) {
     }));
   } else {
     const pathText = c.map((x) => x.title).join(' / ');
-    const hay = pathText + ' ' + f.title;
-    const prod = (PRODUCTS.find((p) => p.re.test(hay)) || { name: 'Other' }).name;
+    /* nearest folder to the file decides the product, then the file name, then the top folders */
+    let prod = 'Other';
+    for (const seg of [f.title, ...c.map((x) => x.title).reverse()]) { const hit = PRODUCTS.find((p) => p.re.test(seg)); if (hit) { prod = hit.name; break; } }
     clips.push(Object.assign(base, {
-      product: prod, editor: c.length ? c[0].title : 'Drive root', month: '',
+      product: prod, editor: c.length ? c[0].title : 'Drive root', folder: c.length > 1 ? c[c.length - 1].title : '', month: '',
       concept: clean(f.title), version: 0, date: (f.createdTime || '').slice(0, 10),
       ok: true, vault: false, winner: WINNER_RE.test(pathText), path: pathText,
     }));

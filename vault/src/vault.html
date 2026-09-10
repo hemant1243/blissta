@@ -232,7 +232,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
         ${c.version ? `<span class="v">V${c.version}</span>` : c.kind === 'image' ? '<span class="v">IMAGE</span>' : ''}
         <div class="concept ${label ? '' : 'raw'}">${esc(label || c.name)}</div>
       </div>
-      <div class="cap"><div class="t">${esc(c.product)}</div><div class="s">${esc(c.editor)}${c.date ? ' · ' + esc(c.date) : ''}</div></div>
+      <div class="cap"><div class="t">${esc(c.product)}</div><div class="s">${esc(c.editor)}${c.folder ? ' · ' + esc(c.folder) : c.date ? ' · ' + esc(c.date) : ''}</div></div>
     </button>`;
   }
   function fill(id, list, empty) {
