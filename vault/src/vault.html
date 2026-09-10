@@ -112,6 +112,8 @@ main { max-width: 1240px; margin: 0 auto; padding: 18px 12px 60px; display: grid
 .word input, .field input { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; width: 100%; }
 .warn { background: var(--bad-soft); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
 .warn code { font-size: 13px; }
+.what { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--ink-2); }
+.what b { color: var(--ink); }
 details summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 details dl { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 10px 0 0; }
 details dt { color: var(--muted); } details dd { margin: 0; word-break: break-word; }
@@ -161,7 +163,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
         <li>Drop your files in the Drive folder that opens.</li>
         <li>Name each file <code>PRODUCT_YOURNAME_DATE_CONCEPT_v1.mp4</code></li>
       </ol>
-      <div class="sub">Clips show up here within the hour. Search, filters and Winners work the moment they land.</div>
+      <div class="sub">Clips show up here within the hour. Search and filters work the moment they land.</div>
     </div>
   </section>
 </main>
@@ -177,13 +179,10 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     <div class="acts">
       <a class="btn primary" id="c-open" target="_blank" rel="noopener">Open in Drive</a>
       <a class="btn" id="c-dl" target="_blank" rel="noopener">Download</a>
-      <button class="btn star" id="c-star">⭐ Mark as winner</button>
+      <a class="btn star" id="c-star" target="_blank" rel="noopener">⭐ Make it a winner</a>
       <button class="btn" id="c-copy">Copy link</button>
     </div>
-    <div>
-      <div class="field"><label for="c-word">What is this clip? One line so others can find it</label>
-      <div class="word"><input id="c-word" placeholder="grandma testimonial, hook 3, japanese voice"><button class="btn" id="c-save">Save</button></div></div>
-    </div>
+    <div class="what" id="c-how"></div>
     <details><summary>Details</summary><dl id="c-dl-list"></dl></details>
   </div>
 </div></div>
@@ -197,6 +196,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   <div class="acts"><a class="btn primary big" id="add-go" target="_blank" rel="noopener">Open my folder in Drive</a><button class="btn big" id="add-cancel">Cancel</button></div>
 </div></div></div>
 
+<script id="vault-data" type="application/json">{}</script>
 <div class="toast" id="toast"></div>
 <button class="help" id="help" aria-label="How this works">?</button>
 <div class="helpbox" id="helpbox">
@@ -206,14 +206,14 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     <li><b>Add clips</b> opens your Drive folder. Drop files there.</li>
     <li>Name files <code>PRODUCT_NAME_DATE_CONCEPT_v1.mp4</code></li>
     <li>New clips appear here within the hour.</li>
-    <li>Type anything in the search. Click a clip to open, download or mark it a winner.</li>
+    <li>Type anything in the search. Click a clip to open or download it.</li><li>Winners are whatever sits in a WINNERS folder in Drive.</li>
   </ol>
 </div>
 
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
-  const state = { clips: [], folders: { products: {} }, tags: {}, meta: null, product: 'All', q: '', db: null, dbOk: false };
+  const state = { clips: [], folders: { products: {} }, tags: {}, meta: null, product: 'All', q: '', dbOk: true };
   const CODE = { 'MB GUMMIES': 'MBG', 'CORVAEL': 'CORVAEL', 'PEA': 'PEA' };
   const cls = (p) => ({ 'MB Gummies': 'mbg', 'Corvael': 'cor', 'PEA': 'pea' }[p] || '');
   const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -240,7 +240,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     el.innerHTML = list.length ? list.map(card).join('') : `<div class="empty" style="flex:1">${empty}</div>`;
   }
   function visible() { return state.product === 'All' ? state.clips : state.clips.filter((c) => c.product === state.product); }
-  const isWinner = (c) => { const t = state.tags[c.id] || {}; return t.winner === undefined ? !!c.winner : !!t.winner; };
+  const isWinner = (c) => !!c.winner;
   function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, c.path, c.kind, c.version ? 'v' + c.version : '', t.word, isWinner(c) ? 'winner' : ''].join(' ').toLowerCase(); }
   function render() {
     const all = visible();
@@ -277,7 +277,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   }
   function renderStatus() {
     const s = $('status');
-    if (!state.dbOk) { s.innerHTML = '<span class="dot off"></span>Library offline'; return; }
+    if (!state.dbOk) { s.innerHTML = '<span class="dot off"></span>Index missing'; return; }
     const m = state.meta;
     s.innerHTML = `<span class="dot"></span>${state.clips.length.toLocaleString()} clips · synced ${m && m.syncedAt ? ago(m.syncedAt) : 'never'}`;
   }
@@ -295,20 +295,14 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     $('c-warn').hidden = c.ok || !c.vault;
     $('c-warn').innerHTML = `This file is not named by the rule, so search cannot place it. Rename it in Drive to <code>${esc(CODE[(c.product || '').toUpperCase()] || 'PRODUCT')}_${esc((c.editor || 'NAME').replace(/\s+/g, ''))}_${esc((c.created || '').slice(0, 10) || 'YYYY-MM-DD')}_concept_v1.${esc(c.name.split('.').pop())}</code>`;
     $('c-open').href = c.url; $('c-dl').href = dlUrl(c.id);
-    $('c-star').classList.toggle('on', isWinner(c)); $('c-star').textContent = isWinner(c) ? '⭐ Winner' : '⭐ Mark as winner';
-    $('c-word').value = t.word || '';
+    const wf = ((state.folders.products || {})[c.product] || {}).winners;
+    $('c-star').classList.toggle('on', isWinner(c)); $('c-star').textContent = isWinner(c) ? '⭐ Winner' : '⭐ Make it a winner';
+    $('c-star').href = isWinner(c) ? c.url : (wf ? wf.url : c.url);
+    $('c-how').innerHTML = isWinner(c) ? 'This clip sits in a winners folder. Move it out in Drive to remove it.' : wf ? `To make it a winner: move the file into <b>${esc(c.product)} / WINNERS</b> in Drive. The button opens that folder. It shows here on the next sync.` : 'To make it a winner: move the file into the WINNERS folder of its product in Drive.';
     $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.path || c.month], ['Uploaded', c.created ? new Date(c.created).toLocaleString() : ''], ['Size', c.size ? (c.size / 1048576).toFixed(0) + ' MB' : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
     $('scrim').classList.add('on'); $('clip').classList.add('on');
   }
   function closeAll() { open = null; $('scrim').classList.remove('on'); $('clip').classList.remove('on'); $('addsheet').classList.remove('on'); }
-  async function saveTag(patch) {
-    if (!open) return;
-    const cur = Object.assign({}, state.tags[open.id] || {}, patch, { at: new Date().toISOString() });
-    if (!state.db) { toast('Cannot save, library offline'); return; }
-    try { await state.db.doc('vault/tags').update({ [open.id]: cur }); state.tags[open.id] = cur; render(); return true; }
-    catch (e) { if (e && e.code === 'not_granted') toast('Sign in to save changes'); else toast('Could not save: ' + (e && e.message || 'unknown')); return false; }
-  }
-
   /* ---------- add sheet ---------- */
   let addProduct = '';
   function renderAdd() {
@@ -344,9 +338,6 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   $('q').addEventListener('input', () => { state.q = $('q').value; render(); });
   $('scrim').onclick = closeAll; $('clip-close').onclick = closeAll; $('add-close').onclick = closeAll; $('add-cancel').onclick = closeAll;
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
-  $('c-star').onclick = async () => { const on = !isWinner(open); if (await saveTag({ winner: on })) { show(open.id); toast(on ? 'Marked as winner' : 'Removed from winners'); } };
-  $('c-save').onclick = async () => { if (await saveTag({ word: $('c-word').value.trim() })) toast('Saved'); };
-  $('c-word').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('c-save').click(); });
   $('c-copy').onclick = async () => { try { await navigator.clipboard.writeText(open.url); toast('Link copied'); } catch { toast(open.url); } };
   $('add').onclick = () => { $('add-name').value = store.get('vault.name') || ''; renderAdd(); $('scrim').classList.add('on'); $('addsheet').classList.add('on'); setTimeout(() => $('add-name').focus(), 50); };
   $('add-name').addEventListener('input', () => { store.set('vault.name', $('add-name').value.trim()); updateAdd(); });
@@ -354,25 +345,11 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   $('help').onclick = () => $('helpbox').classList.toggle('on');
 
   /* ---------- data ---------- */
+  try {
+    const d = JSON.parse(document.getElementById('vault-data').textContent || '{}');
+    state.clips = d.clips || []; state.folders = d.folders || { products: {} }; state.meta = d.meta || null;
+  } catch (e) { state.dbOk = false; }
   render(); renderStatus();
-  (async () => {
-    const db = await (window.claude && window.claude.use ? window.claude.use('db') : null);
-    if (!db) { state.dbOk = false; renderStatus(); $('first').hidden = true; $('r-win').innerHTML = $('r-new').innerHTML = '<div class="empty" style="flex:1">Cannot reach the library from this view. Open the page in claude.ai and sign in.</div>'; $('r-fix').innerHTML = ''; return; }
-    state.db = db; state.dbOk = true;
-    db.collection('vault').onSnapshot((snap) => {
-      let clips = [];
-      for (const d of snap.docs) {
-        const data = d.data() || {};
-        if (d.id.startsWith('idx-')) clips = clips.concat(data.clips || []);
-        else if (d.id === 'folders') state.folders = data;
-        else if (d.id === 'meta') state.meta = data;
-        else if (d.id === 'tags') state.tags = data;
-      }
-      clips.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-      state.clips = clips;
-      render(); renderStatus();
-    }, (e) => { state.dbOk = false; renderStatus(); toast('Library error: ' + (e && e.message || e.code)); });
-    setInterval(renderStatus, 60000);
-  })();
+  setInterval(renderStatus, 60000);
 })();
 </script>
