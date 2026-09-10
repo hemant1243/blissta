@@ -228,8 +228,8 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     const label = c.concept || (t.word ? t.word : '');
     return `<button class="card" data-id="${esc(c.id)}">
       <div class="thumb ${cls(c.product)}">
-        ${t.winner ? '<span class="star">⭐</span>' : ''}${!c.ok && !t.winner ? '<span class="fix">FIX NAME</span>' : ''}
-        ${c.version ? `<span class="v">V${c.version}</span>` : ''}
+        ${isWinner(c) ? '<span class="star">⭐</span>' : ''}${c.vault && !c.ok ? '<span class="fix">FIX NAME</span>' : ''}
+        ${c.version ? `<span class="v">V${c.version}</span>` : c.kind === 'image' ? '<span class="v">IMAGE</span>' : ''}
         <div class="concept ${label ? '' : 'raw'}">${esc(label || c.name)}</div>
       </div>
       <div class="cap"><div class="t">${esc(c.product)}</div><div class="s">${esc(c.editor)}${c.date ? ' · ' + esc(c.date) : ''}</div></div>
@@ -240,7 +240,8 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     el.innerHTML = list.length ? list.map(card).join('') : `<div class="empty" style="flex:1">${empty}</div>`;
   }
   function visible() { return state.product === 'All' ? state.clips : state.clips.filter((c) => c.product === state.product); }
-  function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, 'v' + c.version, t.word, t.winner ? 'winner' : ''].join(' ').toLowerCase(); }
+  const isWinner = (c) => { const t = state.tags[c.id] || {}; return t.winner === undefined ? !!c.winner : !!t.winner; };
+  function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, c.path, c.kind, c.version ? 'v' + c.version : '', t.word, isWinner(c) ? 'winner' : ''].join(' ').toLowerCase(); }
   function render() {
     const all = visible();
     const week = Date.now() - 7 * 864e5;
@@ -255,11 +256,11 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
       $('rn').textContent = hits.length + (hits.length === 1 ? ' clip' : ' clips');
       $('rgrid').innerHTML = hits.length ? hits.map(card).join('') : `<div class="empty" style="grid-column:1/-1">Nothing matches <b>${esc(state.q)}</b>. Try one word, or an editor's name.</div>`;
     } else {
-      const win = all.filter((c) => (state.tags[c.id] || {}).winner);
+      const win = all.filter(isWinner);
       const fresh = all.filter((c) => c.created && new Date(c.created) > week);
-      const fix = all.filter((c) => !c.ok);
+      const fix = all.filter((c) => c.vault && !c.ok);
       $('n-win').textContent = win.length; $('n-new').textContent = fresh.length; $('n-fix').textContent = fix.length;
-      fill('r-win', win, 'No winners marked yet. Open a clip and press <b>Mark as winner</b>.');
+      fill('r-win', win.slice(0, 60), 'No winners marked yet. Open a clip and press <b>Mark as winner</b>.');
       fill('r-new', fresh.slice(0, 40), 'Nothing new in the last 7 days.');
       fill('r-fix', fix.slice(0, 40), 'Every clip is named right. Good.');
       $('s-fix').hidden = fix.length === 0;
@@ -270,14 +271,15 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     const tries = [...words].slice(0, 6);
     $('tries').innerHTML = tries.length ? 'Try ' + tries.map((w) => `<button data-q="${esc(w)}">${esc(w)}</button>`).join(' ') : '';
     /* product chips */
-    const prods = ['All', ...Object.keys(state.folders.products || {})];
+    const prods = ['All', ...new Set([...Object.keys(state.folders.products || {}), ...state.clips.map((c) => c.product)])].filter(Boolean);
+    if (prods.includes('Other')) prods.push(prods.splice(prods.indexOf('Other'), 1)[0]);
     $('products').innerHTML = prods.map((p) => `<button class="chip ${p === state.product ? 'on' : ''}" data-p="${esc(p)}">${esc(p)}${p !== 'All' ? ` <span style="opacity:.6">${state.clips.filter((c) => c.product === p).length}</span>` : ''}</button>`).join('');
   }
   function renderStatus() {
     const s = $('status');
     if (!state.dbOk) { s.innerHTML = '<span class="dot off"></span>Library offline'; return; }
     const m = state.meta;
-    s.innerHTML = `<span class="dot"></span>${state.clips.length} clips · synced ${m && m.syncedAt ? ago(m.syncedAt) : 'never'}`;
+    s.innerHTML = `<span class="dot"></span>${state.clips.length.toLocaleString()} clips · synced ${m && m.syncedAt ? ago(m.syncedAt) : 'never'}`;
   }
 
   /* ---------- clip sheet ---------- */
@@ -290,12 +292,12 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     $('c-sm').textContent = [c.product, c.editor, c.date, c.version ? 'v' + c.version : ''].filter(Boolean).join(' · ');
     $('c-title').textContent = c.concept || t.word || 'Unnamed clip';
     $('c-sub').textContent = c.name;
-    $('c-warn').hidden = c.ok;
+    $('c-warn').hidden = c.ok || !c.vault;
     $('c-warn').innerHTML = `This file is not named by the rule, so search cannot place it. Rename it in Drive to <code>${esc(CODE[(c.product || '').toUpperCase()] || 'PRODUCT')}_${esc((c.editor || 'NAME').replace(/\s+/g, ''))}_${esc((c.created || '').slice(0, 10) || 'YYYY-MM-DD')}_concept_v1.${esc(c.name.split('.').pop())}</code>`;
     $('c-open').href = c.url; $('c-dl').href = dlUrl(c.id);
-    $('c-star').classList.toggle('on', !!t.winner); $('c-star').textContent = t.winner ? '⭐ Winner' : '⭐ Mark as winner';
+    $('c-star').classList.toggle('on', isWinner(c)); $('c-star').textContent = isWinner(c) ? '⭐ Winner' : '⭐ Mark as winner';
     $('c-word').value = t.word || '';
-    $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.month], ['Uploaded', c.created ? new Date(c.created).toLocaleString() : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
+    $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.path || c.month], ['Uploaded', c.created ? new Date(c.created).toLocaleString() : ''], ['Size', c.size ? (c.size / 1048576).toFixed(0) + ' MB' : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
     $('scrim').classList.add('on'); $('clip').classList.add('on');
   }
   function closeAll() { open = null; $('scrim').classList.remove('on'); $('clip').classList.remove('on'); $('addsheet').classList.remove('on'); }
@@ -342,7 +344,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   $('q').addEventListener('input', () => { state.q = $('q').value; render(); });
   $('scrim').onclick = closeAll; $('clip-close').onclick = closeAll; $('add-close').onclick = closeAll; $('add-cancel').onclick = closeAll;
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
-  $('c-star').onclick = async () => { const on = !(state.tags[open.id] || {}).winner; if (await saveTag({ winner: on })) { show(open.id); toast(on ? 'Marked as winner' : 'Removed from winners'); } };
+  $('c-star').onclick = async () => { const on = !isWinner(open); if (await saveTag({ winner: on })) { show(open.id); toast(on ? 'Marked as winner' : 'Removed from winners'); } };
   $('c-save').onclick = async () => { if (await saveTag({ word: $('c-word').value.trim() })) toast('Saved'); };
   $('c-word').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('c-save').click(); });
   $('c-copy').onclick = async () => { try { await navigator.clipboard.writeText(open.url); toast('Link copied'); } catch { toast(open.url); } };
