@@ -1,0 +1,376 @@
+<title>Blissta Vault</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f5f6f4; --surface: #ffffff; --surface-2: #eaece8;
+  --ink: #101412; --ink-2: #4b5450; --muted: #7e8783; --line: #dcdfdb; --line-2: #c3c9c4;
+  --accent: #1e56c9; --accent-ink: #fff; --accent-soft: #e3ebfb;
+  --star: #d99a00; --star-soft: #fff3d1; --good: #0a7d0a; --good-soft: #e3f3e3; --bad: #b3261e; --bad-soft: #fde7e5;
+  --p-mbg-a: #2b3f8f; --p-mbg-b: #141f4d; --p-mbg-ink: #cfe0ff;
+  --p-cor-a: #1f6b63; --p-cor-b: #0d3330; --p-cor-ink: #c6f0ea;
+  --p-pea-a: #8a5a12; --p-pea-b: #3f2a08; --p-pea-ink: #ffe6b3;
+  --p-x-a: #4b5450; --p-x-b: #262b29; --p-x-ink: #e2e6e3;
+  --shadow: 0 2px 4px rgba(16,20,18,.05), 0 16px 40px -20px rgba(16,20,18,.3);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0c0f0e; --surface: #151918; --surface-2: #1f2523; --ink: #f1f3f2; --ink-2: #b4bcb8; --muted: #7c8581; --line: #242b28; --line-2: #37403c;
+    --accent: #5b90f0; --accent-ink: #0a1220; --accent-soft: #182a48;
+    --star: #f0b23a; --star-soft: #3a2c10; --good: #37c237; --good-soft: #14301a; --bad: #ff6b60; --bad-soft: #3a1512;
+    --shadow: 0 2px 4px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0f0e; --surface: #151918; --surface-2: #1f2523; --ink: #f1f3f2; --ink-2: #b4bcb8; --muted: #7c8581; --line: #242b28; --line-2: #37403c;
+  --accent: #5b90f0; --accent-ink: #0a1220; --accent-soft: #182a48;
+  --star: #f0b23a; --star-soft: #3a2c10; --good: #37c237; --good-soft: #14301a; --bad: #ff6b60; --bad-soft: #3a1512;
+  --shadow: 0 2px 4px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.8);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "IBM Plex Sans", system-ui, sans-serif; padding-inline: 16px; }
+h1, h2, h3 { font-family: Manrope, sans-serif; margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); }
+.btn { padding: 10px 18px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.big { padding: 14px 22px; font-size: 16px; border-radius: 14px; }
+.btn.quiet { border-color: transparent; color: var(--ink-2); }
+.btn svg { width: 18px; height: 18px; }
+.btn[disabled] { opacity: .5; cursor: default; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 18px 12px; max-width: 1240px; margin: 0 auto; flex-wrap: wrap; }
+.brand { font-family: Manrope, sans-serif; font-weight: 800; font-size: 18px; }
+.brand span { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 10px; font-family: "IBM Plex Sans", sans-serif; }
+.brand .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 6px; vertical-align: 1px; }
+.brand .dot.off { background: var(--bad); }
+
+.hero { max-width: 760px; margin: 22px auto 8px; text-align: center; display: grid; gap: 14px; }
+.hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+.search { position: relative; }
+.search input { width: 100%; padding: 18px 20px 18px 54px; border-radius: 18px; border: 2px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-size: 18px; box-shadow: var(--shadow); }
+.search input:focus { border-color: var(--accent); }
+.search svg { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 2.2; }
+.chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.chip { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); font-weight: 600; font-size: 13.5px; }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tries { color: var(--muted); font-size: 13.5px; }
+.tries button { background: none; border: 0; padding: 0 4px; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 18px 12px 60px; display: grid; gap: 34px; }
+.shelf h2, .results h2 { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.shelf h2 .n, .results h2 .n { font-size: 13px; color: var(--muted); font-weight: 600; font-family: "IBM Plex Sans", sans-serif; }
+.shelf h2 .why { font-size: 13px; color: var(--muted); font-weight: 500; font-family: "IBM Plex Sans", sans-serif; margin-left: auto; }
+.row { display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 12px; scroll-snap-type: x proximity; align-items: flex-start; }
+.row .card { flex: 0 0 176px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; scroll-snap-align: start; cursor: pointer; transition: transform .12s, box-shadow .12s; display: block; text-align: left; padding: 0; width: 100%; }
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.thumb { height: 220px; position: relative; display: grid; align-content: end; padding: 12px; color: var(--p-x-ink); background: linear-gradient(160deg, var(--p-x-a), var(--p-x-b)); }
+.thumb.mbg { background: linear-gradient(160deg, var(--p-mbg-a), var(--p-mbg-b)); color: var(--p-mbg-ink); }
+.thumb.cor { background: linear-gradient(160deg, var(--p-cor-a), var(--p-cor-b)); color: var(--p-cor-ink); }
+.thumb.pea { background: linear-gradient(160deg, var(--p-pea-a), var(--p-pea-b)); color: var(--p-pea-ink); }
+.thumb .concept { font-family: Manrope, sans-serif; font-weight: 800; font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
+.thumb .concept.raw { font-family: "IBM Plex Sans", monospace; font-weight: 500; font-size: 12px; opacity: .85; }
+.thumb .v { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.16); }
+.thumb .star { position: absolute; top: 8px; left: 8px; font-size: 18px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.thumb .fix { position: absolute; top: 10px; left: 10px; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: var(--bad); color: #fff; }
+.cap { padding: 10px 12px 12px; }
+.cap .t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap .s { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.empty { color: var(--muted); padding: 26px 16px; text-align: center; border: 1px dashed var(--line-2); border-radius: 14px; font-size: 14.5px; }
+.empty b { color: var(--ink); }
+.first { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px 24px; display: grid; gap: 12px; max-width: 640px; margin: 0 auto; box-shadow: var(--shadow); }
+.first h2 { font-size: 22px; font-weight: 800; }
+.first ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; color: var(--ink-2); }
+.first code { background: var(--surface-2); padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+
+.scrim { position: fixed; inset: 0; background: rgba(10,12,11,.5); display: none; z-index: 9; }
+.scrim.on { display: block; }
+.sheet { position: fixed; inset: 0; display: none; place-items: center; z-index: 10; padding: 20px; }
+.sheet.on { display: grid; }
+.box { width: min(860px, 96vw); max-height: 92vh; overflow-y: auto; background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); position: relative; }
+.box.two { display: grid; grid-template-columns: 300px 1fr; }
+@media (max-width: 720px) { .box.two { grid-template-columns: 1fr; } }
+.prev { display: grid; align-content: end; padding: 24px; min-height: 340px; color: var(--p-x-ink); background: linear-gradient(160deg, var(--p-x-a), var(--p-x-b)); }
+.prev.mbg { background: linear-gradient(160deg, var(--p-mbg-a), var(--p-mbg-b)); color: var(--p-mbg-ink); }
+.prev.cor { background: linear-gradient(160deg, var(--p-cor-a), var(--p-cor-b)); color: var(--p-cor-ink); }
+.prev.pea { background: linear-gradient(160deg, var(--p-pea-a), var(--p-pea-b)); color: var(--p-pea-ink); }
+.prev .big { font-family: Manrope, sans-serif; font-weight: 800; font-size: 26px; line-height: 1.15; overflow-wrap: anywhere; }
+.prev .sm { font-size: 13px; opacity: .8; margin-top: 8px; }
+.info { padding: 24px; display: grid; gap: 18px; align-content: start; }
+.info h2 { font-size: 22px; font-weight: 800; word-break: break-word; }
+.sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.acts .btn { justify-content: center; padding: 14px; font-size: 15px; }
+.acts .btn.star.on { background: var(--star-soft); border-color: var(--star); color: var(--star); }
+.word { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.word input, .field input { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; width: 100%; }
+.warn { background: var(--bad-soft); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.warn code { font-size: 13px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+details dl { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 10px 0 0; }
+details dt { color: var(--muted); } details dd { margin: 0; word-break: break-word; }
+.close { position: absolute; top: 14px; right: 14px; z-index: 1; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.add { padding: 28px; display: grid; gap: 18px; }
+.add h2 { font-size: 22px; font-weight: 800; }
+.add .hint { font-size: 14px; color: var(--ink-2); background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+.add .hint code { background: var(--surface); padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 14px; font-weight: 600; opacity: 0; transition: .2s; z-index: 30; box-shadow: var(--shadow); max-width: 92vw; }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+.help { position: fixed; right: 20px; bottom: 20px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--surface); font-family: Manrope, sans-serif; font-weight: 800; font-size: 18px; box-shadow: var(--shadow); z-index: 8; }
+.helpbox { position: fixed; right: 20px; bottom: 74px; width: 320px; max-width: calc(100vw - 40px); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); display: none; z-index: 8; font-size: 14.5px; }
+.helpbox.on { display: block; }
+.helpbox b { font-family: Manrope, sans-serif; font-size: 16px; display: block; margin-bottom: 8px; }
+.helpbox ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.helpbox code { background: var(--surface-2); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="brand">Blissta Vault <span id="status"><span class="dot off"></span>Connecting</span></div>
+  <button class="btn primary big" id="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>Add clips</button>
+</header>
+
+<section class="hero">
+  <h1>What do you need?</h1>
+  <div class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="grandma, unboxing, Youssef, v2, 2026-09…" autocomplete="off">
+  </div>
+  <div class="chips" id="products"></div>
+  <div class="tries" id="tries"></div>
+</section>
+
+<main id="main">
+  <section class="results" id="results" hidden><h2>Results <span class="n" id="rn"></span></h2><div class="grid" id="rgrid"></div></section>
+  <section class="shelf" id="s-win"><h2>⭐ Winners <span class="n" id="n-win"></span><span class="why">Ads that worked. Start here.</span></h2><div class="row" id="r-win"></div></section>
+  <section class="shelf" id="s-new"><h2>🆕 New this week <span class="n" id="n-new"></span><span class="why">Fresh from the editors</span></h2><div class="row" id="r-new"></div></section>
+  <section class="shelf" id="s-fix"><h2>✏️ Fix the name <span class="n" id="n-fix"></span><span class="why">Named wrong, so nobody can find them</span></h2><div class="row" id="r-fix"></div></section>
+  <section id="first" hidden>
+    <div class="first">
+      <h2>Nothing in the Vault yet</h2>
+      <ol>
+        <li>Press <b>Add clips</b>, pick your product and your name.</li>
+        <li>Drop your files in the Drive folder that opens.</li>
+        <li>Name each file <code>PRODUCT_YOURNAME_DATE_CONCEPT_v1.mp4</code></li>
+      </ol>
+      <div class="sub">Clips show up here within the hour. Search, filters and Winners work the moment they land.</div>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="sheet" id="clip"><div class="box two">
+  <button class="btn quiet close" id="clip-close">Close</button>
+  <div class="prev" id="c-prev"><div class="big" id="c-concept"></div><div class="sm" id="c-sm"></div></div>
+  <div class="info">
+    <div><h2 id="c-title"></h2><div class="sub" id="c-sub"></div></div>
+    <div class="warn" id="c-warn" hidden></div>
+    <div class="acts">
+      <a class="btn primary" id="c-open" target="_blank" rel="noopener">Open in Drive</a>
+      <a class="btn" id="c-dl" target="_blank" rel="noopener">Download</a>
+      <button class="btn star" id="c-star">⭐ Mark as winner</button>
+      <button class="btn" id="c-copy">Copy link</button>
+    </div>
+    <div>
+      <div class="field"><label for="c-word">What is this clip? One line so others can find it</label>
+      <div class="word"><input id="c-word" placeholder="grandma testimonial, hook 3, japanese voice"><button class="btn" id="c-save">Save</button></div></div>
+    </div>
+    <details><summary>Details</summary><dl id="c-dl-list"></dl></details>
+  </div>
+</div></div>
+
+<div class="sheet" id="addsheet"><div class="box"><div class="add">
+  <button class="btn quiet close" id="add-close">Close</button>
+  <h2>Where do your clips go?</h2>
+  <div class="field"><label>Product</label><div class="chips" id="add-products" style="justify-content:flex-start"></div></div>
+  <div class="field"><label for="add-name">Your name, exactly as your folder is called</label><input id="add-name" list="editors" placeholder="Youssef" autocomplete="off"><datalist id="editors"></datalist></div>
+  <div class="hint" id="add-hint"></div>
+  <div class="acts"><a class="btn primary big" id="add-go" target="_blank" rel="noopener">Open my folder in Drive</a><button class="btn big" id="add-cancel">Cancel</button></div>
+</div></div></div>
+
+<div class="toast" id="toast"></div>
+<button class="help" id="help" aria-label="How this works">?</button>
+<div class="helpbox" id="helpbox">
+  <b>How this works</b>
+  <ol>
+    <li>Clips live in Google Drive. This page finds them.</li>
+    <li><b>Add clips</b> opens your Drive folder. Drop files there.</li>
+    <li>Name files <code>PRODUCT_NAME_DATE_CONCEPT_v1.mp4</code></li>
+    <li>New clips appear here within the hour.</li>
+    <li>Type anything in the search. Click a clip to open, download or mark it a winner.</li>
+  </ol>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const state = { clips: [], folders: { products: {} }, tags: {}, meta: null, product: 'All', q: '', db: null, dbOk: false };
+  const CODE = { 'MB GUMMIES': 'MBG', 'CORVAEL': 'CORVAEL', 'PEA': 'PEA' };
+  const cls = (p) => ({ 'MB Gummies': 'mbg', 'Corvael': 'cor', 'PEA': 'pea' }[p] || '');
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const ago = (iso) => { if (!iso) return ''; const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+  const dlUrl = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
+  let toastT; const toast = (m) => { $('toast').textContent = m; $('toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('on'), 2400); };
+  const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+  /* ---------- rendering ---------- */
+  function card(c) {
+    const t = state.tags[c.id] || {};
+    const label = c.concept || (t.word ? t.word : '');
+    return `<button class="card" data-id="${esc(c.id)}">
+      <div class="thumb ${cls(c.product)}">
+        ${t.winner ? '<span class="star">⭐</span>' : ''}${!c.ok && !t.winner ? '<span class="fix">FIX NAME</span>' : ''}
+        ${c.version ? `<span class="v">V${c.version}</span>` : ''}
+        <div class="concept ${label ? '' : 'raw'}">${esc(label || c.name)}</div>
+      </div>
+      <div class="cap"><div class="t">${esc(c.product)}</div><div class="s">${esc(c.editor)}${c.date ? ' · ' + esc(c.date) : ''}</div></div>
+    </button>`;
+  }
+  function fill(id, list, empty) {
+    const el = $(id);
+    el.innerHTML = list.length ? list.map(card).join('') : `<div class="empty" style="flex:1">${empty}</div>`;
+  }
+  function visible() { return state.product === 'All' ? state.clips : state.clips.filter((c) => c.product === state.product); }
+  function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, 'v' + c.version, t.word, t.winner ? 'winner' : ''].join(' ').toLowerCase(); }
+  function render() {
+    const all = visible();
+    const week = Date.now() - 7 * 864e5;
+    const q = state.q.trim().toLowerCase();
+    const searching = q.length > 0;
+    $('results').hidden = !searching;
+    document.querySelectorAll('.shelf').forEach((s) => (s.hidden = searching));
+    $('first').hidden = searching || state.clips.length > 0 || !state.dbOk;
+    if (searching) {
+      const toks = q.split(/\s+/).filter(Boolean);
+      const hits = all.filter((c) => { const h = hay(c); return toks.every((t) => h.includes(t)); });
+      $('rn').textContent = hits.length + (hits.length === 1 ? ' clip' : ' clips');
+      $('rgrid').innerHTML = hits.length ? hits.map(card).join('') : `<div class="empty" style="grid-column:1/-1">Nothing matches <b>${esc(state.q)}</b>. Try one word, or an editor's name.</div>`;
+    } else {
+      const win = all.filter((c) => (state.tags[c.id] || {}).winner);
+      const fresh = all.filter((c) => c.created && new Date(c.created) > week);
+      const fix = all.filter((c) => !c.ok);
+      $('n-win').textContent = win.length; $('n-new').textContent = fresh.length; $('n-fix').textContent = fix.length;
+      fill('r-win', win, 'No winners marked yet. Open a clip and press <b>Mark as winner</b>.');
+      fill('r-new', fresh.slice(0, 40), 'Nothing new in the last 7 days.');
+      fill('r-fix', fix.slice(0, 40), 'Every clip is named right. Good.');
+      $('s-fix').hidden = fix.length === 0;
+    }
+    /* tries */
+    const words = new Set();
+    for (const c of state.clips) { if (c.editor) words.add(c.editor); const w = (c.concept || '').split(' ')[0]; if (w && w.length > 3) words.add(w); }
+    const tries = [...words].slice(0, 6);
+    $('tries').innerHTML = tries.length ? 'Try ' + tries.map((w) => `<button data-q="${esc(w)}">${esc(w)}</button>`).join(' ') : '';
+    /* product chips */
+    const prods = ['All', ...Object.keys(state.folders.products || {})];
+    $('products').innerHTML = prods.map((p) => `<button class="chip ${p === state.product ? 'on' : ''}" data-p="${esc(p)}">${esc(p)}${p !== 'All' ? ` <span style="opacity:.6">${state.clips.filter((c) => c.product === p).length}</span>` : ''}</button>`).join('');
+  }
+  function renderStatus() {
+    const s = $('status');
+    if (!state.dbOk) { s.innerHTML = '<span class="dot off"></span>Library offline'; return; }
+    const m = state.meta;
+    s.innerHTML = `<span class="dot"></span>${state.clips.length} clips · synced ${m && m.syncedAt ? ago(m.syncedAt) : 'never'}`;
+  }
+
+  /* ---------- clip sheet ---------- */
+  let open = null;
+  function show(id) {
+    const c = state.clips.find((x) => x.id === id); if (!c) return;
+    open = c; const t = state.tags[c.id] || {};
+    $('c-prev').className = 'prev ' + cls(c.product);
+    $('c-concept').textContent = c.concept || t.word || c.name;
+    $('c-sm').textContent = [c.product, c.editor, c.date, c.version ? 'v' + c.version : ''].filter(Boolean).join(' · ');
+    $('c-title').textContent = c.concept || t.word || 'Unnamed clip';
+    $('c-sub').textContent = c.name;
+    $('c-warn').hidden = c.ok;
+    $('c-warn').innerHTML = `This file is not named by the rule, so search cannot place it. Rename it in Drive to <code>${esc(CODE[(c.product || '').toUpperCase()] || 'PRODUCT')}_${esc((c.editor || 'NAME').replace(/\s+/g, ''))}_${esc((c.created || '').slice(0, 10) || 'YYYY-MM-DD')}_concept_v1.${esc(c.name.split('.').pop())}</code>`;
+    $('c-open').href = c.url; $('c-dl').href = dlUrl(c.id);
+    $('c-star').classList.toggle('on', !!t.winner); $('c-star').textContent = t.winner ? '⭐ Winner' : '⭐ Mark as winner';
+    $('c-word').value = t.word || '';
+    $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.month], ['Uploaded', c.created ? new Date(c.created).toLocaleString() : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
+    $('scrim').classList.add('on'); $('clip').classList.add('on');
+  }
+  function closeAll() { open = null; $('scrim').classList.remove('on'); $('clip').classList.remove('on'); $('addsheet').classList.remove('on'); }
+  async function saveTag(patch) {
+    if (!open) return;
+    const cur = Object.assign({}, state.tags[open.id] || {}, patch, { at: new Date().toISOString() });
+    if (!state.db) { toast('Cannot save, library offline'); return; }
+    try { await state.db.doc('vault/tags').update({ [open.id]: cur }); state.tags[open.id] = cur; render(); return true; }
+    catch (e) { if (e && e.code === 'not_granted') toast('Sign in to save changes'); else toast('Could not save: ' + (e && e.message || 'unknown')); return false; }
+  }
+
+  /* ---------- add sheet ---------- */
+  let addProduct = '';
+  function renderAdd() {
+    const prods = Object.keys(state.folders.products || {});
+    if (!addProduct || !prods.includes(addProduct)) addProduct = state.product !== 'All' ? state.product : prods[0] || '';
+    $('add-products').innerHTML = prods.map((p) => `<button class="chip ${p === addProduct ? 'on' : ''}" data-p="${esc(p)}">${esc(p)}</button>`).join('');
+    const names = new Set(); for (const p of Object.values(state.folders.products || {})) for (const n of Object.keys(p.editors || {})) names.add(n);
+    $('editors').innerHTML = [...names].map((n) => `<option value="${esc(n)}">`).join('');
+    updateAdd();
+  }
+  function updateAdd() {
+    const name = $('add-name').value.trim();
+    const p = (state.folders.products || {})[addProduct];
+    const month = new Date().toISOString().slice(0, 7);
+    if (!p) { $('add-hint').textContent = 'Pick a product.'; $('add-go').href = '#'; return; }
+    const ed = name && Object.entries(p.editors || {}).find(([n]) => n.toLowerCase() === name.toLowerCase());
+    const code = CODE[addProduct.toUpperCase()] || addProduct.replace(/\s+/g, '').toUpperCase();
+    const example = `${code}_${(name || 'YOURNAME').replace(/\s+/g, '')}_${new Date().toISOString().slice(0, 10)}_grandma-testimonial_v1.mp4`;
+    if (!name) { $('add-hint').innerHTML = `Type your name. Then drop files into <b>${esc(addProduct)} / your name / ${month}</b> and name them like <code>${esc(example)}</code>`; $('add-go').href = p.url; return; }
+    if (!ed) { $('add-hint').innerHTML = `No folder called <b>${esc(name)}</b> in ${esc(addProduct)} yet. The product folder opens. Make a folder <b>${esc(name)}</b>, inside it a folder <b>${month}</b>, drop your files there. Name them like <code>${esc(example)}</code>`; $('add-go').href = p.url; return; }
+    const m = (ed[1].months || {})[month];
+    if (m) { $('add-hint').innerHTML = `Your folder for ${month} opens. Drop files there, named like <code>${esc(example)}</code>`; $('add-go').href = m.url; }
+    else { $('add-hint').innerHTML = `Your folder opens. Make a folder <b>${month}</b> inside it first, then drop files there, named like <code>${esc(example)}</code>`; $('add-go').href = ed[1].url; }
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', (e) => {
+    const c = e.target.closest('.card'); if (c) { show(c.dataset.id); return; }
+    const chip = e.target.closest('#products .chip'); if (chip) { state.product = chip.dataset.p; render(); return; }
+    const ac = e.target.closest('#add-products .chip'); if (ac) { addProduct = ac.dataset.p; renderAdd(); return; }
+    const tb = e.target.closest('#tries button'); if (tb) { $('q').value = tb.dataset.q; state.q = tb.dataset.q; render(); $('q').focus(); return; }
+  });
+  $('q').addEventListener('input', () => { state.q = $('q').value; render(); });
+  $('scrim').onclick = closeAll; $('clip-close').onclick = closeAll; $('add-close').onclick = closeAll; $('add-cancel').onclick = closeAll;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
+  $('c-star').onclick = async () => { const on = !(state.tags[open.id] || {}).winner; if (await saveTag({ winner: on })) { show(open.id); toast(on ? 'Marked as winner' : 'Removed from winners'); } };
+  $('c-save').onclick = async () => { if (await saveTag({ word: $('c-word').value.trim() })) toast('Saved'); };
+  $('c-word').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('c-save').click(); });
+  $('c-copy').onclick = async () => { try { await navigator.clipboard.writeText(open.url); toast('Link copied'); } catch { toast(open.url); } };
+  $('add').onclick = () => { $('add-name').value = store.get('vault.name') || ''; renderAdd(); $('scrim').classList.add('on'); $('addsheet').classList.add('on'); setTimeout(() => $('add-name').focus(), 50); };
+  $('add-name').addEventListener('input', () => { store.set('vault.name', $('add-name').value.trim()); updateAdd(); });
+  $('add-go').addEventListener('click', () => { if ($('add-go').getAttribute('href') === '#') return; toast('Drive opened in a new tab. Clips show here within the hour.'); });
+  $('help').onclick = () => $('helpbox').classList.toggle('on');
+
+  /* ---------- data ---------- */
+  render(); renderStatus();
+  (async () => {
+    const db = await (window.claude && window.claude.use ? window.claude.use('db') : null);
+    if (!db) { state.dbOk = false; renderStatus(); $('first').hidden = true; $('r-win').innerHTML = $('r-new').innerHTML = '<div class="empty" style="flex:1">Cannot reach the library from this view. Open the page in claude.ai and sign in.</div>'; $('r-fix').innerHTML = ''; return; }
+    state.db = db; state.dbOk = true;
+    db.collection('vault').onSnapshot((snap) => {
+      let clips = [];
+      for (const d of snap.docs) {
+        const data = d.data() || {};
+        if (d.id.startsWith('idx-')) clips = clips.concat(data.clips || []);
+        else if (d.id === 'folders') state.folders = data;
+        else if (d.id === 'meta') state.meta = data;
+        else if (d.id === 'tags') state.tags = data;
+      }
+      clips.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+      state.clips = clips;
+      render(); renderStatus();
+    }, (e) => { state.dbOk = false; renderStatus(); toast('Library error: ' + (e && e.message || e.code)); });
+    setInterval(renderStatus, 60000);
+  })();
+})();
+</script>
