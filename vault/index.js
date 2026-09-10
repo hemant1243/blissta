@@ -38,7 +38,8 @@ for (const dir of listingDirs) {
   if (!fs.existsSync(dir)) continue;
   for (const f of fs.readdirSync(dir).sort()) {
     if (!f.endsWith('.json')) continue;
-    let j; try { j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { console.error('skip', f, e.message); continue; }
+    let j; const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+    try { j = JSON.parse(raw); } catch { try { j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch (e) { console.error('skip', f, e.message); continue; } }
     for (const file of j.files || []) {
       if (!file || !file.id) continue;
       store.files[file.id] = { id: file.id, title: file.title, mimeType: file.mimeType, parentId: file.parentId || '', createdTime: file.createdTime || '', modifiedTime: file.modifiedTime || '', viewUrl: file.viewUrl || '', fileSize: file.fileSize ? Number(file.fileSize) : 0 };
