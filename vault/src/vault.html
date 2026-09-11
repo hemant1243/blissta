@@ -217,6 +217,9 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   const CODE = { 'MB GUMMIES': 'MBG', 'CORVAEL': 'CORVAEL', 'PEA': 'PEA' };
   const cls = (p) => ({ 'MB Gummies': 'mbg', 'Corvael': 'cor', 'PEA': 'pea' }[p] || '');
   const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  /* Everyone sees the same clock as the store: US Eastern. */
+  const etDate = (d) => new Date(d || Date.now()).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const etTime = (iso) => { try { return new Date(iso).toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' }) + ' ET'; } catch (e) { return new Date(iso).toLocaleString(); } };
   const ago = (iso) => { if (!iso) return ''; const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
   const dlUrl = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
   let toastT; const toast = (m) => { $('toast').textContent = m; $('toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('on'), 2400); };
@@ -293,13 +296,13 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     $('c-title').textContent = c.concept || t.word || 'Unnamed clip';
     $('c-sub').textContent = c.name;
     $('c-warn').hidden = c.ok || !c.vault;
-    $('c-warn').innerHTML = `This file is not named by the rule, so search cannot place it. Rename it in Drive to <code>${esc(CODE[(c.product || '').toUpperCase()] || 'PRODUCT')}_${esc((c.editor || 'NAME').replace(/\s+/g, ''))}_${esc((c.created || '').slice(0, 10) || 'YYYY-MM-DD')}_concept_v1.${esc(c.name.split('.').pop())}</code>`;
+    $('c-warn').innerHTML = `This file is not named by the rule, so search cannot place it. Rename it in Drive to <code>${esc(CODE[(c.product || '').toUpperCase()] || 'PRODUCT')}_${esc((c.editor || 'NAME').replace(/\s+/g, ''))}_${esc(c.created ? etDate(c.created) : 'YYYY-MM-DD')}_concept_v1.${esc(c.name.split('.').pop())}</code>`;
     $('c-open').href = c.url; $('c-dl').href = dlUrl(c.id);
     const wf = ((state.folders.products || {})[c.product] || {}).winners;
     $('c-star').classList.toggle('on', isWinner(c)); $('c-star').textContent = isWinner(c) ? '⭐ Winner' : '⭐ Make it a winner';
     $('c-star').href = isWinner(c) ? c.url : (wf ? wf.url : c.url);
     $('c-how').innerHTML = isWinner(c) ? 'This clip sits in a winners folder. Move it out in Drive to remove it.' : wf ? `To make it a winner: move the file into <b>${esc(c.product)} / WINNERS</b> in Drive. The button opens that folder. It shows here on the next sync.` : 'To make it a winner: move the file into the WINNERS folder of its product in Drive.';
-    $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.path || c.month], ['Uploaded', c.created ? new Date(c.created).toLocaleString() : ''], ['Size', c.size ? (c.size / 1048576).toFixed(0) + ' MB' : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
+    $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.path || c.month], ['Uploaded', c.created ? etTime(c.created) : ''], ['Size', c.size ? (c.size / 1048576).toFixed(0) + ' MB' : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
     $('scrim').classList.add('on'); $('clip').classList.add('on');
   }
   function closeAll() { open = null; $('scrim').classList.remove('on'); $('clip').classList.remove('on'); $('addsheet').classList.remove('on'); }
@@ -316,11 +319,11 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   function updateAdd() {
     const name = $('add-name').value.trim();
     const p = (state.folders.products || {})[addProduct];
-    const month = new Date().toISOString().slice(0, 7);
+    const month = etDate().slice(0, 7);
     if (!p) { $('add-hint').textContent = 'Pick a product.'; $('add-go').href = '#'; return; }
     const ed = name && Object.entries(p.editors || {}).find(([n]) => n.toLowerCase() === name.toLowerCase());
     const code = CODE[addProduct.toUpperCase()] || addProduct.replace(/\s+/g, '').toUpperCase();
-    const example = `${code}_${(name || 'YOURNAME').replace(/\s+/g, '')}_${new Date().toISOString().slice(0, 10)}_grandma-testimonial_v1.mp4`;
+    const example = `${code}_${(name || 'YOURNAME').replace(/\s+/g, '')}_${etDate()}_grandma-testimonial_v1.mp4`;
     if (!name) { $('add-hint').innerHTML = `Type your name. Then drop files into <b>${esc(addProduct)} / your name / ${month}</b> and name them like <code>${esc(example)}</code>`; $('add-go').href = p.url; return; }
     if (!ed) { $('add-hint').innerHTML = `No folder called <b>${esc(name)}</b> in ${esc(addProduct)} yet. The product folder opens. Make a folder <b>${esc(name)}</b>, inside it a folder <b>${month}</b>, drop your files there. Name them like <code>${esc(example)}</code>`; $('add-go').href = p.url; return; }
     const m = (ed[1].months || {})[month];
