@@ -4,6 +4,7 @@ const { App } = require('@slack/bolt');
 const { answer, reload } = require('./answer');
 const { BOT } = require('./brain');
 const launch = require('./launch');
+const chase = require('./chase');
 
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const { LogLevel } = require('@slack/bolt');
@@ -56,6 +57,13 @@ async function handle({ event, client, say }) {
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
+  if (/^(open|what'?s open|open list|status)$/i.test(text)) {
+    const p = chase.person(event.user);
+    if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'The open list is for owners, strategists and Jenn.', thread_ts }); return; }
+    try { const r = await chase.collect(client); await say({ text: chase.renderOpenList(r), thread_ts }); }
+    catch (e) { console.error('[chase] open list failed:', e.message); await say({ text: 'Could not build the open list: ' + e.message, thread_ts }); }
+    return;
+  }
   if (launch.isLaunch(text)) {
     if (tier !== 'owner') { await say({ text: 'Only an owner can launch ads. Ask Hemant.', thread_ts }); return; }
     const t0 = Date.now();
@@ -113,4 +121,10 @@ app.message(async (args) => {
   botUserId = auth.user_id;
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
   probeModel();
+  if (process.env.CHASE_ENABLED === '1') {
+    const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
+    const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };
+    setTimeout(run, 30000); setInterval(run, every);
+    console.log('[chase] enabled, every', every / 60000, 'min');
+  } else console.log('[chase] disabled (CHASE_ENABLED != 1)');
 })();
