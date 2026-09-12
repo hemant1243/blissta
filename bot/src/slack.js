@@ -3,6 +3,7 @@ require('dotenv').config();
 const { App } = require('@slack/bolt');
 const { answer, reload } = require('./answer');
 const { BOT } = require('./brain');
+const launch = require('./launch');
 
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const { LogLevel } = require('@slack/bolt');
@@ -55,6 +56,19 @@ async function handle({ event, client, say }) {
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
+  if (launch.isLaunch(text)) {
+    if (tier !== 'owner') { await say({ text: 'Only an owner can launch ads. Ask Hemant.', thread_ts }); return; }
+    const t0 = Date.now();
+    console.log('[launch] start', event.user, 'files', (event.files || []).length);
+    try {
+      const r = await launch.run({ text, files: event.files, botToken: process.env.SLACK_BOT_TOKEN, say, thread_ts });
+      console.log('[launch] done', (Date.now() - t0) + 'ms', r ? r.filter((x) => x.ok).length + '/' + r.length + ' created' : 'rejected');
+    } catch (e) {
+      console.error('[launch] failed', (Date.now() - t0) + 'ms', e.message);
+      try { await say({ text: 'The launch broke partway: ' + e.message + '\nCheck Ads Manager before retrying, some ads may already exist.', thread_ts }); } catch { /* nothing else to do */ }
+    }
+    return;
+  }
   let history;
   try {
     if (event.thread_ts) history = await threadHistory(client, event.channel, event.thread_ts);
