@@ -57,14 +57,15 @@ async function handle({ event, client, say }) {
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
-  if (/^(open|what'?s open|open list|status)$/i.test(text)) {
+  const firstLine = text.split('\n')[0].trim(); /* connectors append footers; commands are one line */
+  if (/^(open|what'?s open|open list|status)$/i.test(firstLine)) {
     const p = chase.person(event.user);
     if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'The open list is for owners, strategists and Jenn.', thread_ts }); return; }
     try { const r = await chase.collect(client); await say({ text: chase.renderOpenList(r), thread_ts }); }
     catch (e) { console.error('[chase] open list failed:', e.message); await say({ text: 'Could not build the open list: ' + e.message, thread_ts }); }
     return;
   }
-  if (launch.isLaunch(text)) {
+  if (launch.isLaunch(firstLine)) {
     if (tier !== 'owner') { await say({ text: 'Only an owner can launch ads. Ask Hemant.', thread_ts }); return; }
     const t0 = Date.now();
     console.log('[launch] start', event.user, 'files', (event.files || []).length);
