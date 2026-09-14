@@ -295,14 +295,9 @@ app.message(async (args) => {
   if (e.channel_type === 'im') return handle(args);
   const tagged = (e.text || '').indexOf('<@' + botUserId + '>') >= 0;
   if (tagged) return; /* app_mention handles it */
-  /* In her own channels she answers everything, top level and threads, no tag needed. */
+  /* In her own channels she answers everything, top level and threads, no tag needed.
+     Everywhere else she waits for a tag, even inside a thread she is already in. */
   if (LISTEN.has(e.channel)) return handle(args);
-  if (e.thread_ts) {
-    if (!botThreads.has(e.thread_ts)) {
-      try { const r = await args.client.conversations.replies({ channel: e.channel, ts: e.thread_ts, limit: 50 }); if ((r.messages || []).some((m) => m.user === botUserId)) botThreads.add(e.thread_ts); } catch { /* no history scope */ }
-    }
-    if (botThreads.has(e.thread_ts)) return handle(args);
-  }
 });
 
 (async () => {
