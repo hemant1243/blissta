@@ -6,7 +6,7 @@ const { guard } = require('./guard');
 const client = new Anthropic({ timeout: 90000, maxRetries: 2 });
 const WATCHDOG_MS = Number(process.env.WATCHDOG_MS || 150000);
 const MODEL = process.env.MODEL || 'claude-opus-5';
-const EFFORT = process.env.EFFORT || 'high';
+const EFFORT = process.env.EFFORT || 'medium';
 let knowledge = loadKnowledge();
 function reload() { knowledge = loadKnowledge(); return knowledge.files; }
 

@@ -9,6 +9,8 @@ const shopify = require('./shopify');
 
 const NUMBERS_PEOPLE = new Set((process.env.NUMBERS_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
+/* Channels where Donnaa answers every message, no tag needed. Default: #donna. */
+const LISTEN = new Set((process.env.DONNAA_CHANNELS || 'C0C0QN1G3PT').split(',').map((s) => s.trim()).filter(Boolean));
 const { LogLevel } = require('@slack/bolt');
 const app = new App({ token: process.env.SLACK_BOT_TOKEN, signingSecret: process.env.SLACK_SIGNING_SECRET, appToken: process.env.SLACK_APP_TOKEN, socketMode: true, logLevel: LogLevel.INFO });
 app.use(async ({ body, next }) => { const t = body && (body.event ? body.event.type + (body.event.channel_type ? ':' + body.event.channel_type : '') : body.type); console.log('[event]', t, 'from', body && body.event && body.event.user); await next(); });
@@ -96,11 +98,28 @@ async function probeModel() {
   } catch (e) { console.error('[probe] model call failed after', (Date.now() - t0) + 'ms:', e.status || '', e.message); }
 }
 
+/* The last human message in a channel before a given ts. Used when someone posts a bare "@Donnaa". */
+async function previousHuman(client, channel, ts) {
+  try {
+    const r = await client.conversations.history({ channel, latest: ts, inclusive: false, limit: 8 });
+    const m = (r.messages || []).find((x) => x.text && !x.subtype && !x.bot_id && x.user !== botUserId && strip(x.text));
+    return m || null;
+  } catch { return null; }
+}
+
 async function handle({ event, client, say }) {
-  const text = strip(event.text);
-  if (!text && !event.thread_ts) return;
+  let text = strip(event.text);
+  let asked = null;
+  if (!text && !event.thread_ts) {
+    /* A bare tag with nothing else: answer the message just above it. */
+    asked = await previousHuman(client, event.channel, event.ts);
+    if (!asked) return;
+    text = strip(asked.text);
+  }
   const tier = OWNERS.has(event.user) ? 'owner' : 'team';
   const isDM = event.channel_type === 'im';
+  /* Show we are on it while the model thinks. */
+  client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' }).catch(() => {});
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); const n = await refreshMemory(client); await say({ text: 'Reloaded: ' + f.join(', ') + ' plus ' + n + ' memory facts.', thread_ts }); return; }
@@ -208,6 +227,7 @@ async function handle({ event, client, say }) {
   try {
     if (event.thread_ts) history = await threadHistory(client, event.channel, event.thread_ts);
     else if (isDM) history = await dmHistory(client, event.channel);
+    else if (asked) history = [{ role: 'user', content: '<@' + asked.user + '> asked: ' + text }];
     else history = [{ role: 'user', content: text }];
   }
   catch { history = [{ role: 'user', content: text }]; }
@@ -220,7 +240,7 @@ async function handle({ event, client, say }) {
     const r = await answer({ history, tier });
     if (thread_ts) botThreads.add(thread_ts);
     let out = r.text;
-    if (r.flags.length && tier === 'owner') out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
+    if (r.flags.length && tier === 'owner' && isDM) out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
     const res = await say({ text: out, thread_ts });
     console.log('[reply]', (Date.now() - t0) + 'ms', 'chars', out.length, 'posted', !!(res && res.ok));
   } catch (e) {
@@ -235,7 +255,11 @@ app.message(async (args) => {
   if (memoryChannel && e.channel === memoryChannel && !e.subtype) { refreshMemory(args.client).catch((err) => console.error('[memory] refresh failed:', err.message)); return; }
   if (e.bot_id || e.subtype) return;
   if (e.channel_type === 'im') return handle(args);
-  if (e.thread_ts && (e.text || '').indexOf('<@' + botUserId + '>') < 0) {
+  const tagged = (e.text || '').indexOf('<@' + botUserId + '>') >= 0;
+  if (tagged) return; /* app_mention handles it */
+  /* In her own channels she answers everything, top level and threads, no tag needed. */
+  if (LISTEN.has(e.channel)) return handle(args);
+  if (e.thread_ts) {
     if (!botThreads.has(e.thread_ts)) {
       try { const r = await args.client.conversations.replies({ channel: e.channel, ts: e.thread_ts, limit: 50 }); if ((r.messages || []).some((m) => m.user === botUserId)) botThreads.add(e.thread_ts); } catch { /* no history scope */ }
     }
