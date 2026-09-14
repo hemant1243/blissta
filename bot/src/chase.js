@@ -199,6 +199,33 @@ async function dm(client, user, text) {
   return client.chat.postMessage({ channel: r.channel.id, text });
 }
 
+/*
+ Railway wipes the disk on every deploy, so the state file alone would re-send every nudge
+ after each release. Slack is the durable memory: before sending, look for our own recent
+ message about the same item in the same place and skip if it is there.
+*/
+let selfId = null;
+async function self(client) { if (!selfId) selfId = (await client.auth.test()).user_id; return selfId; }
+function saidRecently(msgs, me, needle, hours) {
+  const cutoff = Date.now() / 1000 - hours * 3600;
+  return (msgs || []).some((m) => (m.user === me || m.bot_id) && Number(m.ts) >= cutoff && (m.text || '').includes(needle));
+}
+async function saidInDm(client, user, needle, hours) {
+  try {
+    const me = await self(client);
+    const r = await client.conversations.open({ users: user });
+    const h = await client.conversations.history({ channel: r.channel.id, limit: 50, oldest: String(Date.now() / 1000 - hours * 3600) });
+    return saidRecently(h.messages, me, needle, hours);
+  } catch (e) { console.error('[chase] could not read DM history:', e.message); return false; }
+}
+async function saidInThread(client, channel, ts, needle, hours) {
+  try {
+    const me = await self(client);
+    const r = await client.conversations.replies({ channel, ts, limit: 50 });
+    return saidRecently(r.messages, me, needle, hours);
+  } catch (e) { console.error('[chase] could not read thread:', e.message); return false; }
+}
+
 /* One pass. Returns what it did so the caller can log it. */
 async function tick(client, { dryRun = false } = {}) {
   const r = await collect(client);
@@ -211,6 +238,7 @@ async function tick(client, { dryRun = false } = {}) {
     const p = person(a.assignee);
     const age = hoursAgo(a.assignedAt);
     if (age < NUDGE_AFTER_H || !inWorkHours(p) || !due(a.key)) continue;
+    if (!dryRun && await saidInDm(client, a.assignee, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key] = now; continue; }
     const msg = age >= ESCALATE_AFTER_H
       ? `Hey ${p.name.split(' ')[0]}, *${label(a)}* has been open ${ageStr(a.assignedAt)}. When it is done, post the Drive link in #blissta-ad-approved-2-0 and tag Jenn. If you are stuck, say so in the thread: ${link(a)}`
       : `Hey ${p.name.split(' ')[0]}, quick check on *${label(a)}* — assigned ${ageStr(a.assignedAt)} ago. When it is done, post the Drive link in #blissta-ad-approved-2-0 and tag Jenn. ${link(a)}`;
@@ -218,6 +246,7 @@ async function tick(client, { dryRun = false } = {}) {
     state.nudged[a.key] = now;
     did.push({ kind: age >= ESCALATE_AFTER_H ? 'escalate' : 'nudge', who: p.name, what: label(a) });
     if (age >= ESCALATE_AFTER_H && a.assigner && due(a.key + ':assigner')) {
+      if (!dryRun && await saidInThread(client, a.channel, a.ts, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key + ':assigner'] = now; continue; }
       if (!dryRun) await client.chat.postMessage({ channel: a.channel, thread_ts: a.ts, text: `<@${a.assigner}> ${label(a)} is ${ageStr(a.assignedAt)} old with no delivery from <@${a.assignee}>.` });
       state.nudged[a.key + ':assigner'] = now;
     }
@@ -226,6 +255,7 @@ async function tick(client, { dryRun = false } = {}) {
   for (const a of r.notInApproved) {
     const p = person(a.assignee);
     if (!p.chase || !inWorkHours(p) || !due(a.key + ':approved')) continue;
+    if (!dryRun && await saidInDm(client, a.assignee, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key + ':approved'] = now; continue; }
     if (!dryRun) await dm(client, a.assignee, `Nice one on *${label(a)}*. One more step: post that same Drive link in #blissta-ad-approved-2-0 and tag Jenn, otherwise she does not see it.`);
     state.nudged[a.key + ':approved'] = now;
     did.push({ kind: 'post-to-approved', who: p.name, what: label(a) });
@@ -233,6 +263,7 @@ async function tick(client, { dryRun = false } = {}) {
 
   for (const a of r.unassigned) {
     if (hoursAgo(a.assignedAt) < UNASSIGNED_AFTER_H || !due(a.key + ':unassigned')) continue;
+    if (!dryRun && await saidInDm(client, OWNER, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key + ':unassigned'] = now; continue; }
     if (!dryRun) await dm(client, OWNER, `*${label(a)}* has been sitting in #blissta-ad-working-briefs-2-0 for ${ageStr(a.assignedAt)} with nobody tagged. ${link(a)}`);
     state.nudged[a.key + ':unassigned'] = now;
     did.push({ kind: 'unassigned', who: 'Hemant', what: label(a) });
