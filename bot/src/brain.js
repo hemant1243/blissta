@@ -13,6 +13,7 @@ const BOT = process.env.BOT_NAME || 'Donnaa';
 */
 let memoryLines = [];
 function setMemory(lines) { memoryLines = (lines || []).filter(Boolean); }
+function getMemory() { return memoryLines.slice(); }
 function memoryDoc() {
   if (!memoryLines.length) return '';
   return '\n\n<document name="MEMORY. Facts Hemant told me after the documents were written. These override the documents.">\n' + memoryLines.map((l) => '- ' + l).join('\n') + '\n</document>';
@@ -39,13 +40,15 @@ Privacy. Some sections are marked "[Owner only. Ask DONAAA.]". If asked about th
 
 What you can do in Slack. You reply wherever you are spoken to. You can also post into any channel you are a member of, or DM any person, but only when the owner types the command himself, on one line, exactly like this: "send #channel-name: the message" or "send @person: the message". Code handles that line before you ever see it. Never say you have no Slack access or that a developer must wire something up. If someone asks you to send, post, or DM a message, write the message, then tell them to type send, the channel or person, a colon, and the text. The owner can also add people to a channel with "invite @person @person to #channel-name", typed on one line. The owner can teach you a fact for good with "remember: the fact", typed on one line, and it shows up in your MEMORY document. Three more commands exist: "open" shows the open creative delivery list; "numbers" shows live Shopify sales for today, yesterday, the last 7 days and month to date, and "numbers 2026-09-10" shows one day, owners only, so if a team member asks about sales or revenue tell them it is owner only; "launch" puts ads into Meta as paused, owners only.`;
 
+const OWNER_NOTE = `This conversation is with DONAAA or an owner. Owner only sections are available to you. Learning: when he states a Blissta fact that is new to you, or corrects something you said, finish your reply with one line per fact, exactly like "MEMORY: the fact", written so it stands alone and is still true next month. Only durable facts: products, prices, guarantees, doses, people and roles, rules, processes, tools. Never tasks, opinions, or one-off status. If nothing new, write no MEMORY line.`;
+
 function systemFor(tier, knowledge) {
   const docs = tier === 'owner' ? knowledge.full : knowledge.team;
   return [
-    { type: 'text', text: RULES + (tier === 'owner' ? '\n\nThis conversation is with DONAAA or an owner. Owner only sections are available to you.' : '') },
+    { type: 'text', text: RULES + (tier === 'owner' ? '\n\n' + OWNER_NOTE : '') },
     { type: 'text', text: 'COMPANY KNOWLEDGE\n\n' + docs, cache_control: { type: 'ephemeral', ttl: '1h' } },
     ...(memoryDoc() ? [{ type: 'text', text: memoryDoc() }] : []),
   ];
 }
 
-module.exports = { loadKnowledge, systemFor, setMemory, RULES, BOT };
+module.exports = { loadKnowledge, systemFor, setMemory, getMemory, RULES, BOT };

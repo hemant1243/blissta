@@ -6,6 +6,7 @@ const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
 const shopify = require('./shopify');
+const learn = require('./learn');
 
 const NUMBERS_PEOPLE = new Set((process.env.NUMBERS_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
@@ -65,15 +66,28 @@ async function findOrCreateMemoryChannel(client) {
   return made.channel.id;
 }
 
-/* Every plain message in the memory channel is one fact, oldest first. */
+/*
+ Every plain message in the memory channel is one fact, oldest first.
+ A message starting with "proposed:" (from the nightly learning pass) only counts once an owner
+ has reacted with a thumbs up or a check mark. Until then it sits in `pending`.
+*/
+const pending = new Set();
+const approved = (m) => (m.reactions || []).some((r) => /^(\+1|thumbsup|white_check_mark|heavy_check_mark)$/.test(r.name) && (r.users || []).some((u) => OWNERS.has(u)));
 async function refreshMemory(client) {
   if (!memoryChannel) return 0;
   const lines = [];
+  pending.clear();
   let cursor;
   do {
     const r = await client.conversations.history({ channel: memoryChannel, limit: 200, cursor });
     for (const m of r.messages || []) {
       if (m.subtype || !m.text) continue;
+      const prop = m.text.match(/^\s*proposed\s*:\s*([^\n]+)/i);
+      if (prop) {
+        const fact = strip(prop[1]);
+        if (approved(m)) lines.push(fact); else pending.add(fact.toLowerCase());
+        continue;
+      }
       const t = strip(m.text).replace(/^remember\s*:\s*/i, '').trim();
       if (t) lines.push(t);
     }
@@ -81,8 +95,31 @@ async function refreshMemory(client) {
   } while (cursor);
   lines.reverse();
   setMemory(lines);
-  console.log('[memory]', lines.length, 'facts loaded');
+  console.log('[memory]', lines.length, 'facts loaded,', pending.size, 'proposals waiting');
   return lines.length;
+}
+
+/* Owner answers that carry MEMORY: lines are saved for good. Returns the reply without those lines. */
+async function saveMemoryLines(client, out) {
+  const facts = [];
+  const text = out.replace(/^\s*MEMORY:\s*(.+)$/gim, (_, f) => { facts.push(f.trim()); return ''; }).replace(/\n{3,}/g, '\n\n').trim();
+  if (!facts.length || !memoryChannel) return text;
+  for (const f of facts) { try { await client.chat.postMessage({ channel: memoryChannel, text: f }); } catch (e) { console.error('[memory] could not save:', e.message); } }
+  await refreshMemory(client).catch(() => {});
+  return text + '\n\n_Saved to memory: ' + facts.join(' | ') + '_';
+}
+
+let lastLearnDay = null;
+async function learnTick(client) {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  if (now.getUTCHours() !== Number(process.env.LEARN_HOUR_UTC || 2) || lastLearnDay === day) return;
+  lastLearnDay = day;
+  try {
+    const known = new Set([...pending]);
+    const r = await learn.run(client, botUserId, memoryChannel, known);
+    console.log('[learn]', r.threads, 'threads read,', r.proposed, 'facts proposed');
+  } catch (e) { console.error('[learn] failed:', e.message); }
 }
 
 async function bootMemory(client) {
@@ -240,7 +277,7 @@ async function handle({ event, client, say }) {
   try {
     const r = await answer({ history, tier });
     if (thread_ts) botThreads.add(thread_ts);
-    let out = r.text;
+    let out = tier === 'owner' ? await saveMemoryLines(client, r.text) : r.text.replace(/^\s*MEMORY:.*$/gim, '').trim();
     if (r.flags.length && tier === 'owner' && isDM) out += `\n\n_(guard flagged: ${r.flags.join(', ')})_`;
     const res = await say({ text: out, thread_ts });
     console.log('[reply]', (Date.now() - t0) + 'ms', 'chars', out.length, 'posted', !!(res && res.ok));
@@ -275,6 +312,9 @@ app.message(async (args) => {
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
   probeModel();
   bootMemory(app.client);
+  /* Approvals are reactions, and there is no reaction event, so re-read memory every 10 minutes. */
+  setInterval(() => refreshMemory(app.client).catch((e) => console.error('[memory] refresh failed:', e.message)), 10 * 60000);
+  setInterval(() => learnTick(app.client), 5 * 60000);
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
     const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };

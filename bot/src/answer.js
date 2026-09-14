@@ -35,4 +35,10 @@ async function answer({ history, tier }) {
   return { text: g.text, flags: g.flags, usage: msg.usage, model: msg.model };
 }
 
-module.exports = { answer, reload };
+/* Small one-shot call with its own system prompt. No knowledge documents. */
+async function quick({ system, text, maxTokens = 1500 }) {
+  const msg = await client.messages.create({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: text }] });
+  return msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+}
+
+module.exports = { answer, reload, quick };
