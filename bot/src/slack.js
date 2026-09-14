@@ -16,7 +16,8 @@ const app = new App({ token: process.env.SLACK_BOT_TOKEN, signingSecret: process
 app.use(async ({ body, next }) => { const t = body && (body.event ? body.event.type + (body.event.channel_type ? ':' + body.event.channel_type : '') : body.type); console.log('[event]', t, 'from', body && body.event && body.event.user); await next(); });
 let botUserId = null;
 
-const strip = (t) => (t || '').replace(/<@[A-Z0-9]+>/g, '').trim();
+/* Drop tags and the "*Sent using* Claude" footer the connector appends. */
+const strip = (t) => (t || '').replace(/\s*\*Sent using\*[\s\S]*$/i, '').replace(/<@[A-Z0-9]+>/g, '').trim();
 
 function toTurns(msgs) {
   msgs = msgs.filter((m) => m.text && !m.subtype);
