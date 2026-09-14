@@ -2,7 +2,7 @@
 require('dotenv').config();
 const { App } = require('@slack/bolt');
 const { answer, reload } = require('./answer');
-const { BOT } = require('./brain');
+const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
 
@@ -41,6 +41,51 @@ async function dmHistory(client, channel) {
 
 const botThreads = new Set();
 
+/* ---------- memory channel ---------- */
+const MEMORY_NAME = process.env.MEMORY_CHANNEL || 'donnaa-memory';
+let memoryChannel = null;
+
+async function findOrCreateMemoryChannel(client) {
+  let cursor;
+  do {
+    const r = await client.conversations.list({ types: 'public_channel,private_channel', exclude_archived: true, limit: 200, cursor });
+    const hit = (r.channels || []).find((c) => c.name === MEMORY_NAME);
+    if (hit) return hit.id;
+    cursor = r.response_metadata && r.response_metadata.next_cursor;
+  } while (cursor);
+  const made = await client.conversations.create({ name: MEMORY_NAME, is_private: true });
+  const owners = [...OWNERS].filter((u) => u !== botUserId);
+  if (owners.length) { try { await client.conversations.invite({ channel: made.channel.id, users: owners.join(',') }); } catch (e) { console.error('[memory] could not invite owners:', e.data && e.data.error || e.message); } }
+  console.log('[memory] created #' + MEMORY_NAME, made.channel.id);
+  return made.channel.id;
+}
+
+/* Every plain message in the memory channel is one fact, oldest first. */
+async function refreshMemory(client) {
+  if (!memoryChannel) return 0;
+  const lines = [];
+  let cursor;
+  do {
+    const r = await client.conversations.history({ channel: memoryChannel, limit: 200, cursor });
+    for (const m of r.messages || []) {
+      if (m.subtype || !m.text) continue;
+      const t = strip(m.text).replace(/^remember\s*:\s*/i, '').trim();
+      if (t) lines.push(t);
+    }
+    cursor = r.response_metadata && r.response_metadata.next_cursor;
+  } while (cursor);
+  lines.reverse();
+  setMemory(lines);
+  console.log('[memory]', lines.length, 'facts loaded');
+  return lines.length;
+}
+
+async function bootMemory(client) {
+  try { memoryChannel = await findOrCreateMemoryChannel(client); await refreshMemory(client); }
+  catch (e) { console.error('[memory] disabled:', e.data && e.data.error || e.message); }
+}
+
+
 async function probeModel() {
   const t0 = Date.now();
   try {
@@ -56,7 +101,18 @@ async function handle({ event, client, say }) {
   const isDM = event.channel_type === 'im';
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
-  if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
+  if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); const n = await refreshMemory(client); await say({ text: 'Reloaded: ' + f.join(', ') + ' plus ' + n + ' memory facts.', thread_ts }); return; }
+  /* remember: fact      owner only. Stored in the memory channel, so it survives every deploy. */
+  const remM = text.replace(/\s*\*Sent using\*[\s\S]*$/i, '').match(/^\s*remember\s*[:\-]\s*([\s\S]+)$/i);
+  if (remM) {
+    if (tier !== 'owner') { await say({ text: 'Only Hemant can teach me facts. Tell him and he will.', thread_ts }); return; }
+    if (!memoryChannel) { await say({ text: 'My memory channel is not set up, so I cannot keep that. Check the logs.', thread_ts }); return; }
+    const fact = remM[1].trim();
+    await client.chat.postMessage({ channel: memoryChannel, text: fact });
+    const n = await refreshMemory(client);
+    await say({ text: 'Remembered. I now hold ' + n + ' facts from you. They override the documents.', thread_ts });
+    return;
+  }
   /* The Claude connector appends "*Sent using* Claude" to every message, sometimes on the same line. Drop it before matching commands. */
   const cmdText = text.replace(/\s*\*Sent using\*[\s\S]*$/i, '').trim();
   const firstLine = cmdText.split('\n')[0].trim();
@@ -162,6 +218,7 @@ async function handle({ event, client, say }) {
 app.event('app_mention', handle);
 app.message(async (args) => {
   const e = args.event;
+  if (memoryChannel && e.channel === memoryChannel && !e.subtype) { refreshMemory(args.client).catch((err) => console.error('[memory] refresh failed:', err.message)); return; }
   if (e.bot_id || e.subtype) return;
   if (e.channel_type === 'im') return handle(args);
   if (e.thread_ts && (e.text || '').indexOf('<@' + botUserId + '>') < 0) {
@@ -178,6 +235,7 @@ app.message(async (args) => {
   botUserId = auth.user_id;
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
   probeModel();
+  bootMemory(app.client);
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
     const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };
