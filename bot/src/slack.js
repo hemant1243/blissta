@@ -112,6 +112,8 @@ async function handle({ event, client, say }) {
         : code === 'not_in_channel' ? 'I am not in that channel myself. Add me there first, then say it again.'
         : code === 'missing_scope' ? 'The Slack app is missing the channels:manage or groups:write scope. Reinstall it with those.'
         : code === 'cant_invite_self' ? 'I cannot invite myself.'
+        : code === 'user_is_restricted' || code === 'user_is_ultra_restricted' ? 'That person is a guest account. Slack does not let bots add guests to channels, only an admin can, from the channel\'s Add people button. Make them a full member and I can do it next time.'
+        : code === 'ura_max_channels' ? 'That guest is already in the maximum number of channels Slack allows.'
         : code || e.message;
       console.error('[invite] failed', code || e.message);
       await say({ text: 'Could not invite: ' + why, thread_ts });
