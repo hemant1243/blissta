@@ -92,6 +92,32 @@ async function handle({ event, client, say }) {
     }
     return;
   }
+  /*
+   invite @a @b to #channel     adds those people to the channel. Owners only.
+   Needs the channels:manage / groups:write scopes and Donnaa must already be in the channel.
+  */
+  const invM = (event.text || '').match(/^\s*(?:<@[A-Z0-9]+>\s*)?(?:invite|add)\s+((?:<@[A-Z0-9]+(?:\|[^>]*)?>\s*)+)(?:to|into)\s+<#([A-Z0-9]+)(?:\|[^>]*)?>/i);
+  if (invM) {
+    if (tier !== 'owner') { await say({ text: 'Only Hemant can make me invite people.', thread_ts }); return; }
+    const users = [...invM[1].matchAll(/<@([A-Z0-9]+)/g)].map((m) => m[1]).filter((u) => u !== botUserId);
+    const channel = invM[2];
+    if (!users.length) { await say({ text: 'Tag at least one person to invite.', thread_ts }); return; }
+    try {
+      await client.conversations.invite({ channel, users: users.join(',') });
+      await say({ text: 'Added ' + users.map((u) => '<@' + u + '>').join(', ') + ' to <#' + channel + '>.', thread_ts });
+      console.log('[invite]', event.user, users.join(','), '->', channel);
+    } catch (e) {
+      const code = e.data && e.data.error;
+      const why = code === 'already_in_channel' ? 'They are already in that channel.'
+        : code === 'not_in_channel' ? 'I am not in that channel myself. Add me there first, then say it again.'
+        : code === 'missing_scope' ? 'The Slack app is missing the channels:manage or groups:write scope. Reinstall it with those.'
+        : code === 'cant_invite_self' ? 'I cannot invite myself.'
+        : code || e.message;
+      console.error('[invite] failed', code || e.message);
+      await say({ text: 'Could not invite: ' + why, thread_ts });
+    }
+    return;
+  }
   if (launch.isLaunch(firstLine)) {
     if (tier !== 'owner') { await say({ text: 'Only an owner can launch ads. Ask Hemant.', thread_ts }); return; }
     const t0 = Date.now();
