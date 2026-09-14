@@ -65,6 +65,31 @@ async function handle({ event, client, say }) {
     catch (e) { console.error('[chase] open list failed:', e.message); await say({ text: 'Could not build the open list: ' + e.message, thread_ts }); }
     return;
   }
+  /*
+   send #channel: text      posts text into that channel as Donnaa
+   send @person: text       DMs that person as Donnaa
+   Owners only. Slack hands us <#C123|name> and <@U123> in the raw text, so parse the raw event.
+  */
+  const sendM = (event.text || '').match(/^\s*(?:<@[A-Z0-9]+>\s*)?(?:send|post|tell|message|dm)\s+<([#@])([A-Z0-9]+)(?:\|[^>]*)?>\s*[:,\-]?\s*([\s\S]+)$/i);
+  if (sendM) {
+    if (tier !== 'owner') { await say({ text: 'Only Hemant can make me send messages.', thread_ts }); return; }
+    const target = sendM[2];
+    const body = sendM[3].replace(/\n\*Sent using\*.*$/s, '').trim();
+    if (!body) { await say({ text: 'Nothing to send. Put the message after the colon.', thread_ts }); return; }
+    try {
+      const res = await client.chat.postMessage({ channel: target, text: body });
+      const where = sendM[1] === '#' ? '<#' + target + '>' : '<@' + target + '>';
+      await say({ text: 'Sent to ' + where + '.' + (res && res.ts ? '' : ' (no ts came back)'), thread_ts });
+      console.log('[send]', event.user, '->', target, body.length, 'chars');
+    } catch (e) {
+      console.error('[send] failed', e.data && e.data.error || e.message);
+      const why = e.data && e.data.error === 'not_in_channel' ? 'I am not in that channel. Invite me there first, then say it again.'
+        : e.data && e.data.error === 'channel_not_found' ? 'I cannot see that channel. Is it private? Invite me there first.'
+        : (e.data && e.data.error) || e.message;
+      await say({ text: 'Could not send: ' + why, thread_ts });
+    }
+    return;
+  }
   if (launch.isLaunch(firstLine)) {
     if (tier !== 'owner') { await say({ text: 'Only an owner can launch ads. Ask Hemant.', thread_ts }); return; }
     const t0 = Date.now();
