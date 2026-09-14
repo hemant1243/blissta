@@ -38,15 +38,18 @@ async function token() {
   return cached.token;
 }
 
-async function gql(query, variables) {
+async function gql(query, variables, retry = true) {
   const res = await fetch(`https://${shop()}/admin/api/${API_VERSION}/graphql.json`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': await token() },
     body: JSON.stringify({ query, variables }),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error('Shopify HTTP ' + res.status + (json.errors ? ' ' + JSON.stringify(json.errors).slice(0, 200) : ''));
-  if (json.errors) throw new Error('Shopify: ' + json.errors.map((e) => e.message).join('; ').slice(0, 300));
+  const msg = json.errors ? json.errors.map((e) => e.message).join('; ') : '';
+  /* A cached token can predate a scope change. Drop it and try once more with a fresh one. */
+  if (retry && (res.status === 401 || /access denied/i.test(msg))) { cached = { token: null, until: 0 }; return gql(query, variables, false); }
+  if (!res.ok) throw new Error('Shopify HTTP ' + res.status + (msg ? ' ' + msg.slice(0, 200) : ''));
+  if (json.errors) throw new Error('Shopify: ' + msg.slice(0, 300) + (/access denied/i.test(msg) ? '. The app on the store is missing the read_orders scope, approve the app again in Shopify admin.' : ''));
   return json.data;
 }
 
