@@ -57,7 +57,9 @@ async function handle({ event, client, say }) {
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); await say({ text: 'Reloaded: ' + f.join(', '), thread_ts }); return; }
-  const firstLine = text.split('\n')[0].trim(); /* connectors append footers; commands are one line */
+  /* The Claude connector appends "*Sent using* Claude" to every message, sometimes on the same line. Drop it before matching commands. */
+  const cmdText = text.replace(/\s*\*Sent using\*[\s\S]*$/i, '').trim();
+  const firstLine = cmdText.split('\n')[0].trim();
   if (/^(open|what'?s open|open list|status)$/i.test(firstLine)) {
     const p = chase.person(event.user);
     if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'The open list is for owners, strategists and Jenn.', thread_ts }); return; }
@@ -74,7 +76,7 @@ async function handle({ event, client, say }) {
   if (sendM) {
     if (tier !== 'owner') { await say({ text: 'Only Hemant can make me send messages.', thread_ts }); return; }
     const target = sendM[2];
-    const body = sendM[3].replace(/\n\*Sent using\*.*$/s, '').trim();
+    const body = sendM[3].replace(/\s*\*Sent using\*[\s\S]*$/i, '').trim();
     if (!body) { await say({ text: 'Nothing to send. Put the message after the colon.', thread_ts }); return; }
     try {
       const res = await client.chat.postMessage({ channel: target, text: body });
