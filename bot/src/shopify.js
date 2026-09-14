@@ -4,7 +4,8 @@
 
  Env:
    SHOPIFY_SHOP          872ff5-d5.myshopify.com
-   SHOPIFY_ADMIN_TOKEN   shpat_... from a custom app with read_orders
+   SHOPIFY_ADMIN_TOKEN   shpat_... from a legacy custom app, or instead:
+   SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET   from a Dev Dashboard app installed on the store
    SHOPIFY_API_VERSION   optional
 
  Everything is in the store's time zone, America/New_York, same as Shopify reports.
@@ -13,12 +14,34 @@ const TZ = 'America/New_York';
 const API_VERSION = process.env.SHOPIFY_API_VERSION || '2026-07';
 
 const shop = () => { const s = process.env.SHOPIFY_SHOP; if (!s) throw new Error('SHOPIFY_SHOP is not set'); return s; };
-const token = () => { const t = process.env.SHOPIFY_ADMIN_TOKEN; if (!t) throw new Error('SHOPIFY_ADMIN_TOKEN is not set'); return t; };
+
+/*
+ Two ways in. A legacy custom app gives a permanent shpat_ token in SHOPIFY_ADMIN_TOKEN.
+ A Dev Dashboard app gives a client id and secret, and we swap them for a short lived token
+ (client credentials grant, about 24h) and cache it until it is close to expiring.
+*/
+let cached = { token: null, until: 0 };
+async function token() {
+  if (process.env.SHOPIFY_ADMIN_TOKEN) return process.env.SHOPIFY_ADMIN_TOKEN;
+  if (cached.token && Date.now() < cached.until) return cached.token;
+  const id = process.env.SHOPIFY_CLIENT_ID, secret = process.env.SHOPIFY_CLIENT_SECRET;
+  if (!id || !secret) throw new Error('set SHOPIFY_ADMIN_TOKEN, or SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET');
+  const res = await fetch(`https://${shop()}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: id, client_secret: secret, grant_type: 'client_credentials' }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.access_token) throw new Error('Shopify would not issue a token: HTTP ' + res.status + ' ' + (json.error_description || json.error || '').slice(0, 200));
+  const ttl = Number(json.expires_in || 86400) * 1000;
+  cached = { token: json.access_token, until: Date.now() + ttl - 5 * 60 * 1000 };
+  return cached.token;
+}
 
 async function gql(query, variables) {
   const res = await fetch(`https://${shop()}/admin/api/${API_VERSION}/graphql.json`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token() },
+    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': await token() },
     body: JSON.stringify({ query, variables }),
   });
   const json = await res.json().catch(() => ({}));
