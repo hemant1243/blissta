@@ -5,7 +5,9 @@ const { answer, reload } = require('./answer');
 const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
+const shopify = require('./shopify');
 
+const NUMBERS_PEOPLE = new Set((process.env.NUMBERS_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const { LogLevel } = require('@slack/bolt');
 const app = new App({ token: process.env.SLACK_BOT_TOKEN, signingSecret: process.env.SLACK_SIGNING_SECRET, appToken: process.env.SLACK_APP_TOKEN, socketMode: true, logLevel: LogLevel.INFO });
@@ -116,6 +118,18 @@ async function handle({ event, client, say }) {
   /* The Claude connector appends "*Sent using* Claude" to every message, sometimes on the same line. Drop it before matching commands. */
   const cmdText = text.replace(/\s*\*Sent using\*[\s\S]*$/i, '').trim();
   const firstLine = cmdText.split('\n')[0].trim();
+  /*
+   numbers               today, yesterday, last 7 days, month to date from Shopify
+   numbers 2026-09-10    one day
+   Owners plus anyone in NUMBERS_SLACK_IDS. Everyone else is told it is owner only.
+  */
+  const numM = firstLine.match(/^(?:numbers|sales|revenue)(?:\s+(\d{4}-\d{2}-\d{2}))?$/i);
+  if (numM) {
+    if (tier !== 'owner' && !NUMBERS_PEOPLE.has(event.user)) { await say({ text: 'Store numbers are owner only. Ask Hemant.', thread_ts }); return; }
+    try { await say({ text: numM[1] ? await shopify.day(numM[1]) : await shopify.summary(), thread_ts }); }
+    catch (e) { console.error('[numbers] failed:', e.message); await say({ text: 'Could not read Shopify: ' + e.message, thread_ts }); }
+    return;
+  }
   if (/^(open|what'?s open|open list|status)$/i.test(firstLine)) {
     const p = chase.person(event.user);
     if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'The open list is for owners, strategists and Jenn.', thread_ts }); return; }
