@@ -77,6 +77,13 @@ main { max-width: 1240px; margin: 0 auto; padding: 18px 12px 60px; display: grid
 .thumb .concept.raw { font-family: "IBM Plex Sans", monospace; font-weight: 500; font-size: 12px; opacity: .85; }
 .thumb .v { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.16); }
 .thumb .star { position: absolute; top: 8px; left: 8px; font-size: 18px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.thumb .scr { position: absolute; bottom: 10px; right: 10px; font-size: 10px; font-weight: 700; letter-spacing: .08em; padding: 2px 6px; border-radius: 999px; background: rgba(255,255,255,.22); }
+.script { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--ink); max-height: 260px; overflow-y: auto; line-height: 1.55; }
+.script .h { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; font-weight: 700; font-family: Manrope, sans-serif; }
+.script .h span { color: var(--muted); font-weight: 500; font-size: 12.5px; font-family: "IBM Plex Sans", sans-serif; }
+.script .h button { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12.5px; font-weight: 600; }
+.script p { margin: 0 0 6px; }
+.script .ts { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; margin-right: 6px; }
 .thumb .fix { position: absolute; top: 10px; left: 10px; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; background: var(--bad); color: #fff; }
 .cap { padding: 10px 12px 12px; }
 .cap .t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -183,6 +190,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
       <button class="btn" id="c-copy">Copy link</button>
     </div>
     <div class="what" id="c-how"></div>
+    <div class="script" id="c-script" hidden></div>
     <details><summary>Details</summary><dl id="c-dl-list"></dl></details>
   </div>
 </div></div>
@@ -232,7 +240,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     return `<button class="card" data-id="${esc(c.id)}">
       <div class="thumb ${cls(c.product)}">
         ${isWinner(c) ? '<span class="star">⭐</span>' : ''}${c.vault && !c.ok ? '<span class="fix">FIX NAME</span>' : ''}
-        ${c.version ? `<span class="v">V${c.version}</span>` : c.kind === 'image' ? '<span class="v">IMAGE</span>' : ''}
+        ${c.version ? `<span class="v">V${c.version}</span>` : c.kind === 'image' ? '<span class="v">IMAGE</span>' : ''}${c.script ? '<span class="scr">SCRIPT</span>' : ''}
         <div class="concept ${label ? '' : 'raw'}">${esc(label || c.name)}</div>
       </div>
       <div class="cap"><div class="t">${esc(c.product)}</div><div class="s">${esc(c.editor)}${c.folder ? ' · ' + esc(c.folder) : c.date ? ' · ' + esc(c.date) : ''}</div></div>
@@ -244,7 +252,7 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
   }
   function visible() { return state.product === 'All' ? state.clips : state.clips.filter((c) => c.product === state.product); }
   const isWinner = (c) => !!c.winner;
-  function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, c.path, c.kind, c.version ? 'v' + c.version : '', t.word, isWinner(c) ? 'winner' : ''].join(' ').toLowerCase(); }
+  function hay(c) { const t = state.tags[c.id] || {}; return [c.name, c.concept, c.editor, c.product, c.month, c.date, c.path, c.kind, c.version ? 'v' + c.version : '', t.word, isWinner(c) ? 'winner' : '', c.script ? 'script ' + c.script : ''].join(' ').toLowerCase(); }
   function render() {
     const all = visible();
     const week = Date.now() - 7 * 864e5;
@@ -302,6 +310,12 @@ details dt { color: var(--muted); } details dd { margin: 0; word-break: break-wo
     $('c-star').classList.toggle('on', isWinner(c)); $('c-star').textContent = isWinner(c) ? '⭐ Winner' : '⭐ Make it a winner';
     $('c-star').href = isWinner(c) ? c.url : (wf ? wf.url : c.url);
     $('c-how').innerHTML = isWinner(c) ? 'This clip sits in a winners folder. Move it out in Drive to remove it.' : wf ? `To make it a winner: move the file into <b>${esc(c.product)} / WINNERS</b> in Drive. The button opens that folder. It shows here on the next sync.` : 'To make it a winner: move the file into the WINNERS folder of its product in Drive.';
+    const sc = $('c-script'); sc.hidden = !c.script;
+    if (c.script) {
+      const mm = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+      sc.innerHTML = `<div class="h">Script <span>${c.duration ? mm(c.duration) + ' · ' : ''}${c.script.split(/\s+/).length} words</span><button type="button" id="c-copy-script">Copy script</button></div>` + (c.lines || []).map(([t, x]) => `<p><span class="ts">${mm(t)}</span>${esc(x)}</p>`).join('');
+      $('c-copy-script').onclick = async () => { try { await navigator.clipboard.writeText(c.script); toast('Script copied'); } catch { toast('Could not copy'); } };
+    }
     $('c-dl-list').innerHTML = [['File', c.name], ['Product', c.product], ['Editor', c.editor], ['Folder', c.path || c.month], ['Uploaded', c.created ? etTime(c.created) : ''], ['Size', c.size ? (c.size / 1048576).toFixed(0) + ' MB' : ''], ['Type', c.mime]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || '')}</dd>`).join('');
     $('scrim').classList.add('on'); $('clip').classList.add('on');
   }
