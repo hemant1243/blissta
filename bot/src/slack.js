@@ -7,6 +7,7 @@ const launch = require('./launch');
 const chase = require('./chase');
 const shopify = require('./shopify');
 const learn = require('./learn');
+const read = require('./read');
 
 const NUMBERS_PEOPLE = new Set((process.env.NUMBERS_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
 const OWNERS = new Set((process.env.OWNER_SLACK_IDS || '').split(',').map((s) => s.trim()).filter(Boolean));
@@ -261,6 +262,22 @@ async function handle({ event, client, say }) {
     }
     return;
   }
+  /* "What is going on in #channel" / "what happened in Slack today": read it and answer. Owner only. */
+  const wantsRead = read.wants(cmdText);
+  let digest = '';
+  if (wantsRead) {
+    if (tier !== 'owner') { await say({ text: 'Reading other channels is owner only. Ask Hemant.', thread_ts }); return; }
+    try {
+      if (wantsRead.channel) {
+        const d = await read.channelDigest(client, wantsRead.channel, wantsRead.hours);
+        if (d.error) { await say({ text: 'I cannot read <#' + wantsRead.channel + '>: ' + d.error, thread_ts }); return; }
+        digest = `SLACK ACTIVITY in #${d.name}, last ${wantsRead.hours} hours, ${d.count} messages, times are Bangkok:\n${d.text || '(nothing posted)'}`;
+      } else {
+        const d = await read.workspaceDigest(client, wantsRead.hours, new Set([memoryChannel]));
+        digest = `SLACK ACTIVITY across every channel I am in, last ${wantsRead.hours} hours, times are Bangkok:\n${d || '(nothing posted)'}`;
+      }
+    } catch (e) { console.error('[read] failed:', e.message); digest = 'I tried to read Slack and hit: ' + e.message; }
+  }
   let history;
   try {
     if (event.thread_ts) history = await threadHistory(client, event.channel, event.thread_ts);
@@ -271,7 +288,7 @@ async function handle({ event, client, say }) {
   catch { history = [{ role: 'user', content: text }]; }
   if (!history.length || history[history.length - 1].role !== 'user') history.push({ role: 'user', content: text || '(continue)' });
   const where = event.channel_type === 'im' ? 'a direct message' : 'the Slack channel <#' + event.channel + '>' + (event.thread_ts ? ', inside a thread' : '');
-  history[history.length - 1].content = '[Context: this message was sent in ' + where + '. "This channel" means that Slack channel.]\n' + history[history.length - 1].content;
+  history[history.length - 1].content = '[Context: this message was sent in ' + where + '. "This channel" means that Slack channel.]\n' + history[history.length - 1].content + (digest ? '\n\n' + digest + '\n\nAnswer from the activity above. Say who did what, in plain words, short. Point out anything that needs Hemant.' : '');
   const t0 = Date.now();
   console.log('[ask]', tier, event.channel, 'turns', history.length, JSON.stringify((text || '(continue)').slice(0, 80)));
   try {
