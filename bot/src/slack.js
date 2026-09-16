@@ -188,6 +188,14 @@ async function handle({ event, client, say }) {
     catch (e) { console.error('[numbers] failed:', e.message); await say({ text: 'Could not read Shopify: ' + e.message, thread_ts }); }
     return;
   }
+  if (/^(silent|who is silent|not replying|who'?s not replying)(\s+\d+)?$/i.test(firstLine)) {
+    const p = chase.person(event.user);
+    if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'That list is for owners, strategists and Jenn.', thread_ts }); return; }
+    const days = Number((firstLine.match(/\d+/) || [14])[0]);
+    try { const rows = await chase.silent(client, days); await say({ text: chase.renderSilent(rows, days), thread_ts }); }
+    catch (e) { console.error('[chase] silent failed:', e.message); await say({ text: 'Could not build the silent list: ' + e.message, thread_ts }); }
+    return;
+  }
   if (/^(open|what'?s open|open list|status)$/i.test(firstLine)) {
     const p = chase.person(event.user);
     if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'The open list is for owners, strategists and Jenn.', thread_ts }); return; }

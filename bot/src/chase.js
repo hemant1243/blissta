@@ -24,6 +24,7 @@ const CH = {
   neil: 'C0BGT8M8VB7',
   schalk: 'C0BTMKDN10X',
   approved: 'C0B1Q0Q53RQ',
+  editors: 'C0B23B9HWGZ',
 };
 const OWNER = 'U0963M61T8V';
 const JENN = 'U0960GV0ZDH';
@@ -407,4 +408,55 @@ async function tick(client, { dryRun = false } = {}) {
   return { report: r, did, sent };
 }
 
-module.exports = { collect, renderOpenList, tick, CH, person, tokens, names };
+
+/* ---------- who was tagged and never answered ---------- */
+/*
+ Hemant's ask, 16 Sep 2026: show every editor who was tagged in a thread (by Donnaa, a strategist,
+ or anyone) and never wrote a single word back in that thread. Not about delivery, about answering.
+*/
+async function silent(client, days = 14) {
+  const me = await self(client);
+  const oldest = Math.floor(Date.now() / 1000) - days * 86400;
+  const editors = new Set(ROSTER.filter((p) => p.chase || (p.role || '').startsWith('Video Editor')).map((p) => p.id));
+  const tags = []; /* { user, channel, ts (thread root), at (tag ts), by, replied } */
+  for (const channel of [CH.briefs, CH.neil, CH.schalk, CH.editors]) {
+    let msgs = [];
+    try { msgs = await history(client, channel, oldest); } catch { continue; }
+    for (const m of msgs) {
+      let th = [];
+      try { th = m.reply_count ? (await client.conversations.replies({ channel, ts: m.ts, limit: 200 })).messages || [] : [m]; } catch { th = [m]; }
+      for (const r of th) {
+        const by = r.user || (r.bot_id ? me : null);
+        for (const u of new Set(mentions(r.text))) {
+          if (!editors.has(u) || u === by) continue;
+          const replied = th.some((x) => x.user === u && sec(x.ts) > sec(r.ts));
+          tags.push({ user: u, channel, ts: m.ts, at: r.ts, by, replied });
+        }
+      }
+    }
+  }
+  const byUser = {};
+  for (const t of tags) (byUser[t.user] = byUser[t.user] || []).push(t);
+  return Object.entries(byUser).map(([user, list]) => ({
+    user, name: person(user).name,
+    tagged: list.length,
+    answered: list.filter((t) => t.replied).length,
+    silent: list.filter((t) => !t.replied).sort((a, b) => sec(a.at) - sec(b.at)),
+  })).sort((a, b) => b.silent.length - a.silent.length);
+}
+
+function renderSilent(rows, days = 14) {
+  const lines = [`*Tagged in a thread and never answered, last ${days} days*`];
+  const who = (id) => (id === selfId ? 'Donnaa' : person(id).name);
+  for (const r of rows) {
+    if (!r.silent.length) { lines.push(`• ${r.name} — tagged ${r.tagged}, answered every one.`); continue; }
+    const worst = r.silent[0];
+    lines.push(`• *${r.name}* — tagged ${r.tagged}, answered ${r.answered}, silent on ${r.silent.length}. Oldest ${ageStr(worst.at)} (by ${who(worst.by)}) <https://slack.com/archives/${worst.channel}/p${String(worst.ts).replace('.', '')}|↗>`);
+    const more = r.silent.slice(1, 4).map((t) => `${ageStr(t.at)} by ${who(t.by)} <https://slack.com/archives/${t.channel}/p${String(t.ts).replace('.', '')}|↗>`);
+    if (more.length) lines.push(`    also: ${more.join(' · ')}${r.silent.length > 4 ? ` and ${r.silent.length - 4} more` : ''}`);
+  }
+  if (!rows.length) lines.push('Nobody on the editor list was tagged in these rooms.');
+  return lines.join('\n');
+}
+
+module.exports = { collect, renderOpenList, tick, silent, renderSilent, CH, person, tokens, names };
