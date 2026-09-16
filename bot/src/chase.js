@@ -28,19 +28,20 @@ const CH = {
 const OWNER = 'U0963M61T8V';
 const JENN = 'U0960GV0ZDH';
 const LOOKBACK_DAYS = 21;
-const NUDGE_AFTER_H = 48;
-const ESCALATE_AFTER_H = 96;
+const TAG_AFTER_H = 48;        /* day 2: one tag in the thread */
+const DM_AFTER_SILENCE_H = 36; /* no reply to the tag for this long: one DM */
+const REPORT_AFTER_SILENCE_H = 36; /* no reply to the DM for this long: tell Hemant once */
+const RECHECK_AFTER_REPLY_H = 72; /* they answered but no link yet: ask again after this */
 const UNASSIGNED_AFTER_H = 24;
-const RENUDGE_EVERY_H = 24;
+const ONE_PER_PERSON_H = 24;   /* never more than one message to the same person per day */
+const MAX_PER_TICK = 6;
+const DONNA = 'C0C0QN1G3PT';
 const WORK_START = 10, WORK_END = 18; /* local hours, inclusive of start, exclusive of end */
 
 const ROSTER = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'roster.json'), 'utf8'));
 const byId = Object.fromEntries(ROSTER.map((p) => [p.id, p]));
 const person = (id) => byId[id] || { id, name: id, tz: null, role: 'unknown', chase: false };
 
-const STATE_FILE = path.join(__dirname, '..', 'data', 'chase-state.json');
-function loadState() { try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return { nudged: {} }; } }
-function saveState(s) { try { fs.writeFileSync(STATE_FILE, JSON.stringify(s)); } catch (e) { console.error('[chase] could not save state:', e.message); } }
 
 /* ---------- text helpers ---------- */
 const MENTION = /<@([A-Z0-9]+)(?:\|[^>]*)?>/g;
@@ -123,6 +124,11 @@ async function fromSchalk(client, oldest) {
 }
 
 /* ---------- deliveries ---------- */
+const dmCache = {};
+async function dmChannel(client, user) {
+  if (!dmCache[user]) { const r = await client.conversations.open({ users: user }); dmCache[user] = r.channel.id; }
+  return dmCache[user];
+}
 async function deliveries(client, oldest) {
   const out = [];
   for (const [where, ch] of [['approved', CH.approved], ['neil', CH.neil], ['schalk', CH.schalk]]) {
@@ -130,6 +136,12 @@ async function deliveries(client, oldest) {
       if (!hasDrive(m.text) || !m.user) continue;
       out.push({ where, user: m.user, text: m.text, ts: m.ts });
     }
+  }
+  /* links an editor sent Donnaa in a DM count too, but Jenn still needs them in the finish line */
+  for (const p of ROSTER.filter((x) => x.chase)) {
+    let msgs = [];
+    try { msgs = await history(client, await dmChannel(client, p.id), oldest); } catch { continue; }
+    for (const m of msgs) if (m.user === p.id && hasDrive(m.text)) out.push({ where: 'dm', user: m.user, text: m.text, ts: m.ts });
   }
   return out;
 }
@@ -190,76 +202,209 @@ function renderOpenList(r) {
 }
 
 /* ---------- chasing ---------- */
+/*
+ The ladder, agreed with Hemant on 16 Sep 2026:
+   day 2      one tag in the thread where the work was assigned, all of that editor's items in one message
+   +36h quiet one DM: "I tagged you, did not hear back, what is going on?"
+   +36h quiet one line to Hemant in #donna, then Donnaa goes quiet on that item
+   they reply the conversation continues in the DM; a blocker is passed to Hemant once; a promise without a
+              link gets one gentle DM again after 3 days
+ Never more than one message per person per day, never more than MAX_PER_TICK messages per hour.
+ Railway wipes the disk on deploy, so Slack itself is the memory: every decision is made from what
+ Donnaa can see she already said in the thread, the DM, or #donna.
+*/
 function localHour(tz) {
   try { return Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(new Date())); } catch { return null; }
 }
 const inWorkHours = (p) => { if (!p.tz) return false; const h = localHour(p.tz); return h !== null && h >= WORK_START && h < WORK_END; };
 
-/*
- Railway wipes the disk on every deploy, so the state file alone would re-send every nudge
- after each release. Slack is the durable memory: before sending, look for our own recent
- message about the same item in the same place and skip if it is there.
-*/
 let selfId = null;
 async function self(client) { if (!selfId) selfId = (await client.auth.test()).user_id; return selfId; }
-function saidRecently(msgs, me, needle, hours) {
-  const cutoff = Date.now() / 1000 - hours * 3600;
-  return (msgs || []).some((m) => (m.user === me || m.bot_id) && Number(m.ts) >= cutoff && (m.text || '').includes(needle));
+const isMine = (m, me) => m.user === me || (!!m.bot_id && !m.user);
+const BLOCKER = /\b(stuck|blocked|block|waiting|wait for|need|can'?t|cannot|delay|delayed|sick|problem|issue|no (?:footage|voice|audio|script|access))\b/i;
+const join = (xs) => xs.length <= 1 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+/* "tabs 10, 11 and 12 (Neil's doc)" instead of three long labels; briefs keep their names */
+function describe(as, withLink) {
+  const src = as[0].source;
+  if (as.length > 1 && as.every((a) => a.source === src && a.tab)) {
+    const word = src === 'neil' ? 'tab' : 'concept';
+    return `*${word}s ${join(as.map((a) => a.tab))}* (${src === 'neil' ? "Neil's" : "Schalk's"} doc)` + (withLink ? ` <${link(as[0])}|↗>` : '');
+  }
+  return join(as.map((a) => `*${label(a)}*` + (withLink ? ` <${link(a)}|↗>` : '')));
 }
-async function saidInThread(client, channel, ts, needle, hours) {
-  try {
-    const me = await self(client);
-    const r = await client.conversations.replies({ channel, ts, limit: 50 });
-    return saidRecently(r.messages, me, needle, hours);
-  } catch (e) { console.error('[chase] could not read thread:', e.message); return false; }
+const list = (labels) => join(labels.map((l) => `*${l}*`));
+/* Did this text talk about this item? Matches the long label and the compressed "tabs 10, 11 and 12" form. */
+function mentionsItem(text, a) {
+  const t = text || '';
+  if (t.includes(label(a))) return true;
+  if (!a.tab) return false;
+  const doc = a.source === 'neil' ? "Neil's" : "Schalk's";
+  const word = a.source === 'neil' ? 'tab' : 'concept';
+  return t.includes(doc) && new RegExp('\\b' + word + 's?\\b[^*]*?\\b' + a.tab + '\\b', 'i').test(t);
 }
+const daysAgo = (ts) => { const h = hoursAgo(ts); return h < 36 ? 'yesterday' : Math.round(h / 24) + ' days ago'; };
 
 /* One pass. Returns what it did so the caller can log it. */
 async function tick(client, { dryRun = false } = {}) {
   const r = await collect(client);
-  const state = loadState();
+  const me = await self(client);
   const now = Date.now() / 1000;
-  const due = (key) => !state.nudged[key] || (now - state.nudged[key]) / 3600 >= RENUDGE_EVERY_H;
+  const oldest = now - LOOKBACK_DAYS * 86400;
   const did = [];
+  let sent = 0;
+  const say = async (channel, text, thread_ts) => {
+    if (dryRun) return;
+    await client.chat.postMessage(Object.assign({ channel, text }, thread_ts ? { thread_ts } : {}));
+    sent++;
+  };
 
-  /* Everything goes into the thread where the work was assigned, tagging the person whose move it is.
-     Public on purpose: a DM hides the problem, a thread shows it to everyone who cares. */
-  const post = (a, text) => client.chat.postMessage({ channel: a.channel, thread_ts: a.ts, text });
+  /* what Donnaa already said, read back from Slack */
+  const threads = {};
+  const thread = async (channel, ts) => {
+    const k = channel + ':' + ts;
+    if (!threads[k]) { try { threads[k] = (await client.conversations.replies({ channel, ts, limit: 100 })).messages || []; } catch { threads[k] = []; } }
+    return threads[k];
+  };
+  const dms = {};
+  const dm = async (user) => {
+    if (!dms[user]) { try { dms[user] = await history(client, await dmChannel(client, user), oldest); } catch { dms[user] = []; } }
+    return dms[user];
+  };
+  let donna = null;
+  const said = async (...needles) => { if (!donna) donna = await history(client, DONNA, oldest); return donna.find((m) => isMine(m, me) && needles.every((n) => typeof n === 'function' ? n(m.text || '') : (m.text || '').includes(n))); };
+  const lastOf = (msgs, pred) => msgs.filter(pred).sort((a, b) => sec(b.ts) - sec(a.ts))[0] || null;
 
+  /* one message per person per day, across threads and DMs */
+  const touched = {};
+  const touchedToday = async (user) => {
+    if (touched[user] === undefined) {
+      const inDm = lastOf(await dm(user), (m) => isMine(m, me));
+      let t = inDm ? sec(inDm.ts) : 0;
+      for (const a of r.open.concat(r.notInApproved)) {
+        if (a.assignee !== user) continue;
+        const mine = lastOf(await thread(a.channel, a.ts), (m) => isMine(m, me) && (m.text || '').includes('<@' + user + '>'));
+        if (mine) t = Math.max(t, sec(mine.ts));
+      }
+      touched[user] = t;
+    }
+    return now - touched[user] < ONE_PER_PERSON_H * 3600;
+  };
+  const mark = (user) => { touched[user] = now; };
+
+  /* work out where each open item is on the ladder */
+  const items = [];
   for (const a of r.open) {
     const p = person(a.assignee);
-    const age = hoursAgo(a.assignedAt);
-    if (age < NUDGE_AFTER_H || !inWorkHours(p) || !due(a.key)) continue;
-    if (!dryRun && await saidInThread(client, a.channel, a.ts, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key] = now; continue; }
-    const late = age >= ESCALATE_AFTER_H;
-    const who = late && a.assigner && a.assigner !== a.assignee ? `<@${a.assignee}> <@${a.assigner}>` : `<@${a.assignee}>`;
-    const msg = late
-      ? `${who} *${label(a)}* has been open ${ageStr(a.assignedAt)} with no delivery. When it is done, post the Drive link in <#${CH.approved}> and tag <@${JENN}>. Stuck? Say so here.`
-      : `${who} quick check on *${label(a)}*, assigned ${ageStr(a.assignedAt)} ago. When it is done, post the Drive link in <#${CH.approved}> and tag <@${JENN}>.`;
-    if (!dryRun) await post(a, msg);
-    state.nudged[a.key] = now;
-    did.push({ kind: late ? 'escalate' : 'nudge', who: p.name, what: label(a) });
+    const th = await thread(a.channel, a.ts);
+    const tag = lastOf(th, (m) => isMine(m, me) && mentionsItem(m.text, a));
+    const replyInThread = tag ? lastOf(th, (m) => m.user === a.assignee && sec(m.ts) > sec(tag.ts)) : null;
+    const d = await dm(a.assignee);
+    const dmMsg = lastOf(d, (m) => isMine(m, me) && mentionsItem(m.text, a));
+    const since = dmMsg ? sec(dmMsg.ts) : tag ? sec(tag.ts) : Infinity;
+    const replyInDm = lastOf(d, (m) => m.user === a.assignee && sec(m.ts) > since);
+    const reply = [replyInThread, replyInDm].filter(Boolean).sort((x, y) => sec(y.ts) - sec(x.ts))[0] || null;
+    items.push({ a, p, tag, dmMsg, reply });
   }
 
+  /* blockers: an editor said something that sounds stuck, pass it to Hemant once per reply */
+  const blockers = {};
+  for (const it of items) {
+    if (!it.reply || !BLOCKER.test(it.reply.text || '')) continue;
+    (blockers[it.a.assignee + ':' + it.reply.ts] = blockers[it.a.assignee + ':' + it.reply.ts] || []).push(it);
+  }
+  for (const g of Object.values(blockers)) {
+    const { p, reply } = g[0];
+    const quote = (reply.text || '').replace(/\s+/g, ' ').slice(0, 200);
+    if (await said(p.name + ' on ', 'says: "' + quote.slice(0, 40))) continue;
+    if (sent >= MAX_PER_TICK) break;
+    const labels = g.map((x) => label(x.a));
+    await say(DONNA, `<@${OWNER}> ${p.name} on ${describe(g.map((x) => x.a))} says: "${quote}" <${link(g[0].a)}|↗>`);
+    did.push({ kind: 'blocker', who: p.name, what: labels.join(', ') });
+  }
+
+  /* delivered in the thread or a DM but never posted to the finish line: say it once */
   for (const a of r.notInApproved) {
     const p = person(a.assignee);
-    if (!p.chase || !due(a.key + ':approved')) continue;
-    if (!dryRun && await saidInThread(client, a.channel, a.ts, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key + ':approved'] = now; continue; }
-    if (!dryRun) await post(a, `<@${JENN}> <@${a.assignee}> finished *${label(a)}*, the Drive link is in this thread. <@${a.assignee}> please post the same link in <#${CH.approved}> so it gets approved.`);
-    state.nudged[a.key + ':approved'] = now;
+    if (!p.chase || sent >= MAX_PER_TICK) continue;
+    const th = await thread(a.channel, a.ts);
+    if (th.some((m) => isMine(m, me) && mentionsItem(m.text, a) && (m.text || '').includes('post the same link'))) continue;
+    if (await touchedToday(a.assignee)) continue;
+    await say(a.channel, `<@${JENN}> <@${a.assignee}> finished *${label(a)}*, the Drive link is ${a.delivered.where === 'thread' ? 'in this thread' : a.delivered.where === 'dm' ? 'in my DMs' : 'in the ' + a.delivered.where + ' room'}. <@${a.assignee}> please post the same link in <#${CH.approved}> so it gets approved.`, a.ts);
+    mark(a.assignee);
     did.push({ kind: 'post-to-approved', who: p.name, what: label(a) });
   }
 
+  /* step 1: day 2, one tag in the thread, grouped by thread and person */
+  const groups = {};
+  for (const it of items) {
+    if (it.tag || hoursAgo(it.a.assignedAt) < TAG_AFTER_H || !inWorkHours(it.p)) continue;
+    const k = it.a.channel + ':' + it.a.ts + ':' + it.a.assignee;
+    (groups[k] = groups[k] || []).push(it);
+  }
+  for (const g of Object.values(groups)) {
+    const { a, p } = g[0];
+    if (sent >= MAX_PER_TICK || await touchedToday(a.assignee)) continue;
+    const labels = g.map((x) => label(x.a));
+    const age = ageStr(g.map((x) => x.a.assignedAt).sort((x, y) => sec(x) - sec(y))[0]);
+    await say(a.channel, `<@${a.assignee}> quick check on ${describe(g.map((x) => x.a))}, open ${age} with no Drive link. When it is done, post the link in <#${CH.approved}> and tag <@${JENN}>. Stuck? Say so here.`, a.ts);
+    mark(a.assignee);
+    did.push({ kind: 'tag', who: p.name, what: labels.join(', ') });
+  }
+
+  /* step 2: tagged, silence for 36h, one DM with everything of theirs in it */
+  const dmGroups = {};
+  for (const it of items) {
+    if (!it.tag || !inWorkHours(it.p)) continue;
+    if (it.reply && !it.dmMsg) {
+      /* they answered the tag but still no link: one gentle DM after 3 days */
+      if (hoursAgo(it.reply.ts) < RECHECK_AFTER_REPLY_H) continue;
+    } else if (it.reply && it.dmMsg) {
+      if (sec(it.reply.ts) < sec(it.dmMsg.ts) || hoursAgo(it.reply.ts) < RECHECK_AFTER_REPLY_H) continue;
+    } else {
+      if (it.dmMsg || hoursAgo(it.tag.ts) < DM_AFTER_SILENCE_H) continue;
+    }
+    (dmGroups[it.a.assignee] = dmGroups[it.a.assignee] || []).push(it);
+  }
+  for (const [user, g] of Object.entries(dmGroups)) {
+    if (sent >= MAX_PER_TICK || await touchedToday(user)) continue;
+    const p = person(user);
+    const first = p.name.split(' ')[0];
+    const parts = describe(g.map((x) => x.a), true);
+    const answered = g.every((x) => x.reply);
+    const text = answered
+      ? `Hi ${first}. You said you were on ${parts} but I still do not see a Drive link. Where is it at? A link, a date, or "stuck" is all I need. Reply here.`
+      : `Hi ${first}. I tagged you on ${parts} ${daysAgo(g[0].tag.ts)} and did not hear back. What is going on? A Drive link, a date, or "stuck" is all I need. Reply here.`;
+    await say(await dmChannel(client, user), text);
+    mark(user);
+    did.push({ kind: answered ? 'dm-recheck' : 'dm', who: p.name, what: g.map((x) => label(x.a)).join(', ') });
+  }
+
+  /* step 3: DMed, silence for 36h, one line to Hemant, then quiet */
+  const reportGroups = {};
+  for (const it of items) {
+    if (!it.dmMsg || hoursAgo(it.dmMsg.ts) < REPORT_AFTER_SILENCE_H) continue;
+    if (it.reply && sec(it.reply.ts) > sec(it.dmMsg.ts)) continue;
+    if (await said(it.p.name + ' has not answered', (t) => mentionsItem(t, it.a))) continue;
+    (reportGroups[it.a.assignee] = reportGroups[it.a.assignee] || []).push(it);
+  }
+  for (const [user, g] of Object.entries(reportGroups)) {
+    if (sent >= MAX_PER_TICK) break;
+    const p = person(user);
+    const labels = g.map((x) => label(x.a));
+    const oldestA = g.map((x) => x.a.assignedAt).sort((x, y) => sec(x) - sec(y))[0];
+    await say(DONNA, `<@${OWNER}> ${p.name} has not answered on ${describe(g.map((x) => x.a))} (open ${ageStr(oldestA)}). Tagged in the thread ${daysAgo(g[0].tag ? g[0].tag.ts : g[0].dmMsg.ts)}, DMed ${daysAgo(g[0].dmMsg.ts)}, nothing back. Your call.`);
+    did.push({ kind: 'report', who: p.name, what: labels.join(', ') });
+  }
+
+  /* briefs with nobody tagged: one line to Hemant, once */
   for (const a of r.unassigned) {
-    if (hoursAgo(a.assignedAt) < UNASSIGNED_AFTER_H || !due(a.key + ':unassigned')) continue;
-    if (!dryRun && await saidInThread(client, a.channel, a.ts, label(a), RENUDGE_EVERY_H)) { state.nudged[a.key + ':unassigned'] = now; continue; }
-    if (!dryRun) await post(a, `<@${OWNER}> <@${JENN}> *${label(a)}* has been here ${ageStr(a.assignedAt)} with nobody tagged. Who takes it?`);
-    state.nudged[a.key + ':unassigned'] = now;
+    if (hoursAgo(a.assignedAt) < UNASSIGNED_AFTER_H || sent >= MAX_PER_TICK) continue;
+    if (await said('*' + label(a) + '* has nobody tagged')) continue;
+    await say(DONNA, `<@${OWNER}> *${label(a)}* has nobody tagged, ${ageStr(a.assignedAt)} old <${link(a)}|↗>. Who takes it?`);
     did.push({ kind: 'unassigned', who: 'Hemant', what: label(a) });
   }
 
-  if (!dryRun) saveState(state);
-  return { report: r, did };
+  return { report: r, did, sent };
 }
 
 module.exports = { collect, renderOpenList, tick, CH, person, tokens, names };

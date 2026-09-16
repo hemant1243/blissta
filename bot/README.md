@@ -23,3 +23,17 @@ api.slack.com/apps, From scratch. OAuth scopes: app_mentions:read, chat:write, c
 
 ## Deploy
 Railway, new service from this repo, root directory `bot`, variables from `.env.example`.
+
+
+## The chase ladder (delivery follow-ups)
+
+Donnaa follows up on assigned creative work that has no Drive link yet. Agreed with Hemant on 16 Sep 2026:
+
+1. Day 2: one tag in the thread where the work was assigned. All of that editor's items in one message.
+2. 36 hours of silence after the tag: one DM. "I tagged you, did not hear back, what is going on?"
+3. 36 hours of silence after the DM: one line to Hemant in #donna. Then she goes quiet on that item.
+4. If the editor answers, the conversation continues in the DM. A reply that sounds stuck is passed to Hemant once. A promise without a link gets one more DM after 3 days.
+
+Hard limits: one message per person per day across every step, and at most 6 chase messages per hour. A Drive link that names the item, anywhere she can see (approved channel, brief thread, Neil's or Schalk's room, or her DMs), closes it. Links posted only in a thread or DM get a one-time "please post it in #blissta-ad-approved-2-0" in the thread.
+
+There is no state file. Railway wipes the disk on deploy, so Donnaa reads her own past messages in Slack to know what she already said.
