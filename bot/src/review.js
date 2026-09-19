@@ -6,6 +6,7 @@
  video, a revision, and I haven't looked at it, DM me: tag me over there." Look back 30 days.
  Only DM Hemant, never anyone else. Each place is mentioned to him once.
 
+ A tag only counts when the message has a file, a link, or words like revision, done, ready, check.
  A tag counts as reviewed when Hemant or Jenn wrote anything in that thread after the tag, or
  reacted to the message that tagged them. Donnaa's own messages never count as a tag, and bots
  never count as reviewers.
@@ -33,6 +34,9 @@ const hoursAgo = (ts) => (Date.now() / 1000 - sec(ts)) / 3600;
 const ageStr = (ts) => { const h = hoursAgo(ts); return h < 24 ? Math.max(1, Math.round(h)) + 'h ago' : Math.round(h / 24) + ' days ago'; };
 const link = (channel, ts) => `https://slack.com/archives/${channel}/p${String(ts).replace('.', '')}`;
 const isHuman = (m) => !!m.user && !m.bot_id && m.subtype !== 'bot_message';
+/* A tag is a review ask only when there is something to look at: a file, a link, or words that mean "please check this". */
+const ASK = /\b(revis\w*|v\d{1,2}|version|done|ready|finish\w*|updat\w*|final|check|review\w*|feedback|approv\w*|look|watch|see|upload\w*|link|draft|hook\w*|concept|tab \d+|cut|edit\w*|render\w*|export\w*|fix\w*|change\w*)\b/i;
+const isAsk = (m) => (m.files && m.files.length > 0) || /https?:\/\//.test(m.text || '') || ASK.test((m.text || '').replace(/<@[A-Z0-9]+(?:\|[^>]*)?>/g, ''));
 
 let selfId = null;
 async function self(client) { if (!selfId) selfId = (await client.auth.test()).user_id; return selfId; }
@@ -70,7 +74,7 @@ async function scan(client, days = LOOKBACK_DAYS) {
       let th = [root];
       if (root.reply_count) { try { th = (await client.conversations.replies({ channel: ch.id, ts: root.ts, limit: 200 })).messages || [root]; } catch { th = [root]; } }
       for (const m of th) {
-        if (!isHuman(m) || REVIEWERS.has(m.user) || m.user === me) continue;
+        if (!isHuman(m) || REVIEWERS.has(m.user) || m.user === me || !isAsk(m)) continue;
         const asked = [...new Set(mentions(m.text))].filter((u) => REVIEWERS.has(u));
         if (!asked.length || sec(m.ts) < oldest) continue;
         const reviewed = reactedBy(m, REVIEWERS) || th.some((x) => REVIEWERS.has(x.user) && sec(x.ts) > sec(m.ts));
