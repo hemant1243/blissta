@@ -37,3 +37,12 @@ Donnaa follows up on assigned creative work that has no Drive link yet. Agreed w
 Hard limits: one message per person per day across every step, and at most 6 chase messages per hour. A Drive link that names the item, anywhere she can see (approved channel, brief thread, Neil's or Schalk's room, or her DMs), closes it. Links posted only in a thread or DM get a one-time "please post it in #blissta-ad-approved-2-0" in the thread.
 
 There is no state file. Railway wipes the disk on deploy, so Donnaa reads her own past messages in Slack to know what she already said.
+
+## Unanswered tags (reviews)
+
+Hemant's ask, 19 Sep 2026. Editors tag Hemant or Jenn when a concept, video or revision is ready, and those tags get lost. Donnaa sweeps every channel she is in, last 30 days, and finds each message where a human (not a reviewer, not a bot) tagged Hemant or Jenn and neither of them wrote anything in that thread afterwards or reacted to the message.
+
+- `reviews` (or `reviews 7`) lists them on demand. Hemant and Jenn only.
+- Every 4 hours between 9am and 10pm Bangkok she DMs Hemant the ones she has not told him about yet, at most 15 per message. Nobody else is messaged. Each place is mentioned once; she reads her own DM history to know what she already sent, so a redeploy does not repeat it.
+- A tag younger than 12 hours does not count yet.
+- Set `REVIEW_ENABLED=0` to switch the automatic DMs off; the command still works.

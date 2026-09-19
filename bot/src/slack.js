@@ -5,6 +5,7 @@ const { answer, reload } = require('./answer');
 const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
+const review = require('./review');
 const shopify = require('./shopify');
 const learn = require('./learn');
 const read = require('./read');
@@ -188,6 +189,18 @@ async function handle({ event, client, say }) {
     catch (e) { console.error('[numbers] failed:', e.message); await say({ text: 'Could not read Shopify: ' + e.message, thread_ts }); }
     return;
   }
+  /*
+   reviews            every place someone tagged Hemant or Jenn and neither answered, last 30 days
+   reviews 7          same, last 7 days. Owners and Jenn only.
+  */
+  const revM = firstLine.match(/^(?:reviews?|unreviewed|tagged|waiting on me|what am i tagged in)(?:\s+(\d+))?$/i);
+  if (revM) {
+    if (tier !== 'owner' && !/Approver/.test(chase.person(event.user).role)) { await say({ text: 'That list is for Hemant and Jenn.', thread_ts }); return; }
+    const days = Number(revM[1] || review.LOOKBACK_DAYS);
+    try { const items = await review.scan(client, days); await say({ text: review.renderList(items, days), thread_ts }); }
+    catch (e) { console.error('[review] scan failed:', e.message); await say({ text: 'Could not build the list: ' + e.message, thread_ts }); }
+    return;
+  }
   if (/^(silent|who is silent|not replying|who'?s not replying)(\s+\d+)?$/i.test(firstLine)) {
     const p = chase.person(event.user);
     if (tier !== 'owner' && !/Strategist|Approver/.test(p.role)) { await say({ text: 'That list is for owners, strategists and Jenn.', thread_ts }); return; }
@@ -335,6 +348,11 @@ app.message(async (args) => {
   /* Approvals are reactions, and there is no reaction event, so re-read memory every 10 minutes. */
   setInterval(() => refreshMemory(app.client).catch((e) => console.error('[memory] refresh failed:', e.message)), 10 * 60000);
   setInterval(() => learnTick(app.client), 5 * 60000);
+  if (process.env.REVIEW_ENABLED !== '0') {
+    /* Unanswered tags of Hemant or Jenn: one DM to Hemant per new item, checked every 4 hours in his daytime. */
+    const runR = async () => { try { const r = await review.tick(app.client); console.log('[review]', JSON.stringify(r)); } catch (e) { console.error('[review] tick failed:', e.message); } };
+    setTimeout(runR, 90000); setInterval(runR, 4 * 3600000);
+  }
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
     const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };
