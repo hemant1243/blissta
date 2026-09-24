@@ -139,7 +139,8 @@ async function handle(client, ev, { dryRun = false } = {}) {
   if (!d) return { skipped: 'no handoff', status: ev.status };
   const marker = `_${d.kind} · ${ev.status || ev.stage || ''}${ev.revisionVersion ? ' · v' + ev.revisionVersion : ''}${ev.revisionId ? ' · ' + ev.revisionId : ''}_`;
   const tags = d.tag.filter(Boolean).map((u) => `<@${u}>`).join(' ');
-  const body = [`*${ev.status || 'Brief'}* → ${tags} ${d.line}`.trim(), d.extra || '', marker].filter(Boolean).join('\n');
+  const label = ev.sheet === 'Videos' ? (ev.status || 'Update') : 'Brief note';
+  const body = [`*${label}* → ${tags} ${d.line}`.trim(), d.extra || '', marker].filter(Boolean).join('\n');
   if (dryRun) return { would: { root: header(ev), body, tag: d.tag, kind: d.kind } };
   const ch = await channel(client);
   await ensureMembers(client, ch, d.tag.filter(Boolean));
