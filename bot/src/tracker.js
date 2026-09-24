@@ -46,7 +46,7 @@ function slackId(name, email) {
 }
 const who = (name, email) => { const id = slackId(name, email); return id ? `<@${id}>` : (name ? `*${name}*` : 'nobody assigned'); };
 const isHemant = (name, email) => /^hemant/i.test(name || '') || /^blisstainc@/i.test(email || '');
-const link = (url, label) => (url ? `<${url}|${label}>` : '');
+const link = (url, label) => (/^https?:\/\/\S+$/i.test(String(url || '').trim()) ? `<${String(url).trim()}|${label}>` : '');
 
 /* ---------- which trigger fired ---------- */
 /* Returns { kind, tag: [slack ids], line, extra } or null when nothing changes hands. */
