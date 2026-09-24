@@ -1,0 +1,22 @@
+{
+  "_note": "Tracker Team tab email -> Slack user id. Names are matched case-insensitively as a fallback. Add a line when someone joins.",
+  "blisstainc@gmail.com": { "slack": "U0963M61T8V", "name": "Hemant" },
+  "bgnn0715@gmail.com": { "slack": "U0C1G0L4F1T", "name": "Bruce Nieves", "aka": ["Bruce", "Bruce Gabriel"] },
+  "jenniferarteche6@gmail.com": { "slack": "U0960GV0ZDH", "name": "Jenn Arteche", "aka": ["Jenn", "Jennifer"] },
+  "kais.ghandri01@gmail.com": { "slack": "U0C02390RLP", "name": "Kais Ghandri", "aka": ["Kais"] },
+  "neiljaymihal@gmail.com": { "slack": "U0BTG3RTLMR", "name": "Neil Mihal", "aka": ["Neil"] },
+  "schalkprinsloo95@gmail.com": { "slack": "U0BTVMR48NN", "name": "Schalk Prinsloo", "aka": ["Schalk"] },
+  "chris@kocopy.org": { "slack": "U0C357EUMKL", "name": "Chris Orosi", "aka": ["Chris"] },
+  "gkut28@gmail.com": { "slack": "U0C3788HG8Z", "name": "Giorgi Kutateladze", "aka": ["Giorgi"] },
+  "yassine.sboui80@gmail.com": { "slack": "", "name": "Yassine Sboui", "aka": ["Yassine"] },
+  "jhonnorvyabad15@gmail.com": { "slack": "U0BGWMZSZHS", "name": "Jhon Norvy Abad", "aka": ["Jhon", "Abad"] },
+  "ibadali769@gmail.com": { "slack": "U0BSVB9JLBT", "name": "Ibad Ali", "aka": ["Ibad"] },
+  "ibadali2445@gmail.com": { "slack": "U0BSVB9JLBT", "name": "Ibad Ali" },
+  "deejaequetulio@gmail.com": { "slack": "U0BSWMF4YBZ", "name": "Simon Quetulio", "aka": ["Simon"] },
+  "parco.edjillnino@gmail.com": { "slack": "U0AQX1JKYGP", "name": "Edjill Parco", "aka": ["Edjill"] },
+  "lillybelp.ark@gmail.com": { "slack": "U0BLA6D4HNV", "name": "Lillybel Parma", "aka": ["Belle", "Belle Parma"] },
+  "shaikhsuhan530@gmail.com": { "slack": "U0BP93BFCBA", "name": "Suhan Shaikh", "aka": ["Suhan"] },
+  "abbasmemon1996@gmail.com": { "slack": "U0BMD771WCW", "name": "Muhammad Abbas", "aka": ["Abbas"] },
+  "mechaellalago@gmail.com": { "slack": "U09660RPC66", "name": "Mechaella Lago", "aka": ["Mechaella", "Meca"] },
+  "jirehdizon30@gmail.com": { "slack": "U0C2A8ECNCS", "name": "Ruth Jireh Dizon", "aka": ["Ruth"] }
+}

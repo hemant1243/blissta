@@ -6,6 +6,7 @@ const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
 const review = require('./review');
+const httpDoor = require('./http');
 const shopify = require('./shopify');
 const learn = require('./learn');
 const read = require('./read');
@@ -345,6 +346,8 @@ app.message(async (args) => {
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
   probeModel();
   bootMemory(app.client);
+  /* Creative Ops tracker pushes status changes here (POST /tracker), see src/tracker.js. */
+  httpDoor.start(app.client);
   /* Approvals are reactions, and there is no reaction event, so re-read memory every 10 minutes. */
   setInterval(() => refreshMemory(app.client).catch((e) => console.error('[memory] refresh failed:', e.message)), 10 * 60000);
   setInterval(() => learnTick(app.client), 5 * 60000);

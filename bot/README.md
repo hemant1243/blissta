@@ -46,3 +46,25 @@ Hemant's ask, 19 Sep 2026. Editors tag Hemant or Jenn when a concept, video or r
 - Every 4 hours between 9am and 10pm Bangkok she DMs Hemant the ones she has not told him about yet, at most 15 per message. Nobody else is messaged. Each place is mentioned once; she reads her own DM history to know what she already sent, so a redeploy does not repeat it.
 - A tag younger than 12 hours does not count yet.
 - Set `REVIEW_ENABLED=0` to switch the automatic DMs off; the command still works.
+
+## Creative Ops tracker bridge (tracker.js, http.js, tracker/apps-script.gs)
+
+Hemant's ask, 24 Sep 2026. The Creative Operations tracker (Google Sheet behind blisstacreativestracker.netlify.app) is the source of truth for briefs and videos. Donnaa never writes to it. A small Apps Script on the sheet (`tracker/apps-script.gs`) fires on every change, plus a once-a-minute safety check, and POSTs changed rows to Donnaa at `/tracker` with the `X-Tracker-Secret` header. Nothing runs on a schedule inside Donnaa; she only reacts.
+
+She posts into one channel, `#creative-accountability` (env `TRACKER_CHANNEL`, created and filled with Hemant, Jenn and Bruce automatically). One thread per concept (the tracker's Video ID, like `BRF-20260922-97FB30`): the first handoff opens the thread with product, concept name, ID, strategist, editor, brief and Drive links; every later change replies inside it. Threads are found by reading the channel, so a redeploy forgets nothing, and each update carries a marker line so the same change is never posted twice.
+
+| Tracker change | Who gets tagged |
+| --- | --- |
+| Status `Brief Assigned` | Hemant (brief needs approval) |
+| Status `Ready for Editing` | the editor |
+| Brief note by the editor (Revisions tab, stage BRIEF) | the strategist |
+| Brief note by the strategist, or the Briefs row updated | the editor |
+| Status `Awaiting Review`, first cut | the strategist; Hemant and Bruce instead when it is Hemant's concept |
+| Status `For Revision` | the editor, with the review comment quoted |
+| Status `Awaiting Review` after revisions | the strategist |
+| Status `Approved` | Jenn, with the parent Google Drive link and the final cut |
+| Status `Blocked` | the strategist and Hemant |
+
+`Editing` is not posted, nothing changes hands there. People are matched from the tracker's email, then name, through `data/people.json`; someone with no Slack account is named in bold instead of tagged. Tagged people are invited to the channel automatically.
+
+Env: `TRACKER_SECRET` (shared with the Apps Script), `TRACKER_CHANNEL` (default `creative-accountability`), `PORT` (Railway sets it). `GET /` answers `{ok:true}`. `POST /tracker?dry=1` returns what would be posted without posting. Installing the script on the sheet: Extensions → Apps Script, paste the file with the real secret, run `setup` once and allow permissions. The first run only snapshots the sheet; old rows are never posted. `teardown` removes the triggers.
