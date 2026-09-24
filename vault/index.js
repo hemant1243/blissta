@@ -4,7 +4,10 @@
  Builds the Blissta Vault index docs from raw Google Drive listings.
 
  Usage:
-   node vault/index.js <storeFile> <outDir> <vaultRootId> [listingsDir ...]
+   node vault/index.js <storeFile> <outDir> <vaultRootId[,vaultRootId2,...]> [listingsDir ...]
+
+ Several Vault roots (one per Google account, e.g. Blissta USA and Elixir USA) are given as a
+ comma-separated list. Products with the same folder name in two roots are merged on the page.
 
  Every listingsDir is scanned for *.json files, each the raw output of the Drive
  search_files tool ({files:[...]}). Every entry (file or folder) is upserted into
@@ -17,8 +20,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const [storeFile, outDir, rootId, ...listingDirs] = process.argv.slice(2);
-if (!storeFile || !outDir || !rootId) { console.error('usage: node vault/index.js <storeFile> <outDir> <vaultRootId> [listingsDir ...]'); process.exit(1); }
+const [storeFile, outDir, rootArg, ...listingDirs] = process.argv.slice(2);
+if (!storeFile || !outDir || !rootArg) { console.error('usage: node vault/index.js <storeFile> <outDir> <vaultRootId[,vaultRootId2]> [listingsDir ...]'); process.exit(1); }
+const ROOTS = rootArg.split(',').map((s) => s.trim()).filter(Boolean);
+const rootId = ROOTS[0];
 
 const FOLDER = 'application/vnd.google-apps.folder';
 const NAME_RE = /^([A-Za-z0-9]+)_([A-Za-z0-9]+)_(\d{4}-\d{2}-\d{2})_(.+?)_v(\d+)\.([A-Za-z0-9]+)$/;
@@ -64,9 +69,10 @@ function chain(file) { /* folders from top to immediate parent */
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const clean = (s) => s.replace(/\.[A-Za-z0-9]+$/, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-const vaultTree = { root: rootId, products: {} };
-for (const prod of folders.filter((f) => f.parentId === rootId)) {
-  const p = { id: prod.id, url: prod.viewUrl, editors: {} };
+const vaultTree = { root: rootId, roots: ROOTS, products: {} };
+for (const prod of folders.filter((f) => ROOTS.includes(f.parentId))) {
+  /* the same product folder can exist in every root; editors from all of them go under one product */
+  const p = vaultTree.products[prod.title] || { id: prod.id, url: prod.viewUrl, editors: {} };
   vaultTree.products[prod.title] = p;
   for (const ed of folders.filter((f) => f.parentId === prod.id)) {
     if (ed.title.toUpperCase() === 'WINNERS') { p.winners = { id: ed.id, url: ed.viewUrl }; continue; }
@@ -79,7 +85,7 @@ for (const prod of folders.filter((f) => f.parentId === rootId)) {
 const clips = [];
 for (const f of media) {
   const c = chain(f);
-  const vi = c.findIndex((x) => x.id === rootId);
+  const vi = c.findIndex((x) => ROOTS.includes(x.id));
   const kind = f.mimeType.startsWith('video/') ? 'video' : 'image';
   const base = { id: f.id, name: f.title, url: f.viewUrl, kind, mime: f.mimeType, size: f.fileSize || 0, created: f.createdTime, modified: f.modifiedTime };
   if (vi >= 0) {
