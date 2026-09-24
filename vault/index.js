@@ -34,6 +34,7 @@ const PRODUCTS = [
   { name: 'PEA', re: /\bpea\b|painbloc|pain ?bloc|palmitoyl/i },
 ];
 const WINNER_RE = /winn|top videos|w-ads|best ads|winning/i;
+const EDITOR_RE = /^(simon|mechaella|edjill|belle|ibad|ruth|jhon|suhan|neil|schalk|kais|chris|giorgi|abbas|bhea|kallah|taylor)\b/i;
 
 /* ---------- store ---------- */
 let store = { files: {} };
@@ -103,8 +104,10 @@ for (const f of media) {
     /* nearest folder to the file decides the product, then the file name, then the top folders */
     let prod = 'Other';
     for (const seg of [f.title, ...c.map((x) => x.title).reverse()]) { const hit = PRODUCTS.find((p) => p.re.test(seg)); if (hit) { prod = hit.name; break; } }
+    /* outside the Vault tree (e.g. the Elixir USA drive) the editor is whichever folder on the path carries an editor's name */
+    const edFolder = c.find((x) => EDITOR_RE.test(x.title));
     clips.push(Object.assign(base, {
-      product: prod, editor: c.length ? c[0].title : 'Drive root', folder: c.length > 1 ? c[c.length - 1].title : '', month: '',
+      product: prod, editor: edFolder ? edFolder.title : c.length ? c[0].title : 'Drive root', folder: c.length > 1 ? c[c.length - 1].title : '', month: '',
       concept: clean(f.title), version: 0, date: (f.createdTime || '').slice(0, 10),
       ok: true, vault: false, winner: WINNER_RE.test(pathText), path: pathText,
     }));
