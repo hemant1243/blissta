@@ -48,6 +48,29 @@ const who = (name, email) => { const id = slackId(name, email); return id ? `<@$
 const isHemant = (name, email) => /^hemant/i.test(name || '') || /^blisstainc@/i.test(email || '');
 const link = (url, label) => (/^https?:\/\/\S+$/i.test(String(url || '').trim()) ? `<${String(url).trim()}|${label}>` : '');
 
+/* The tracker stores per-hook review feedback as "HOOK_REVIEWS::[{status, comment, reviewerName, ...}, ...]".
+   Turn that into the distinct human comments, in order. Anything else comes back as plain text. */
+function reviewFeedback(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return { comments: [], reviewer: '' };
+  const m = text.match(/^HOOK_REVIEWS::\s*([\s\S]*)$/);
+  if (!m) return { comments: [text], reviewer: '' };
+  let items;
+  try { items = JSON.parse(m[1]); } catch { return { comments: [m[1].trim()].filter(Boolean), reviewer: '' }; }
+  if (!Array.isArray(items)) items = [items];
+  const seen = new Set(); const comments = []; let reviewer = '';
+  for (const it of items) {
+    if (!it || typeof it !== 'object') continue;
+    const c = String(it.comment || it.feedback || '').trim();
+    if (!reviewer && it.reviewerName) reviewer = String(it.reviewerName);
+    const key = c.toLowerCase().replace(/\s+/g, ' ');
+    if (!c || seen.has(key)) continue;
+    seen.add(key); comments.push(c);
+  }
+  return { comments, reviewer };
+}
+const quote = (t) => '> ' + String(t).trim().replace(/\n/g, '\n> ');
+
 /* ---------- which trigger fired ---------- */
 /* Returns { kind, tag: [slack ids], line, extra } or null when nothing changes hands. */
 function decide(ev) {
@@ -77,11 +100,18 @@ function decide(ev) {
     case 'Editing': return null;
     case 'Awaiting Review': {
       const tag = hemants ? [OWNER, BRUCE] : [strategist];
+      /* Bruce's ask, 26 Sep 2026: the parent Drive folder goes right under the message so the reviewer can open the cuts from Slack. */
+      const links = [link(ev.firstCut || ev.finalLink, 'Watch the cut'), ev.parentDrive ? (link(ev.parentDrive, 'Parent Drive') ? 'Parent Drive: ' + link(ev.parentDrive, 'open folder') : '') : ''].filter(Boolean).join('\n');
       return resubmitted
-        ? { kind: 'video-resubmitted', tag, line: `${who(ev.editor, ev.editorEmail)} resubmitted after revisions (v${rev}). Please review.`, extra: link(ev.firstCut || ev.finalLink, 'Watch the cut') }
-        : { kind: 'video-submitted', tag, line: `${who(ev.editor, ev.editorEmail)} submitted the first cut. Please review.`, extra: link(ev.firstCut || ev.finalLink, 'Watch the cut') };
+        ? { kind: 'video-resubmitted', tag, line: `\n${who(ev.editor, ev.editorEmail)} resubmitted after revisions (v${rev}). Please review.`, extra: links }
+        : { kind: 'video-submitted', tag, line: `\n${who(ev.editor, ev.editorEmail)} submitted the first cut. Please review.`, extra: links };
     }
-    case 'For Revision': return { kind: 'video-revisions', tag: editor ? [editor] : [], line: `${who(ev.reviewer, '')} wants changes.`, extra: ev.reviewComment ? `> ${String(ev.reviewComment).replace(/\n/g, '\n> ')}` : '' };
+    case 'For Revision': {
+      /* Bruce's ask, 26 Sep 2026: the tracker's HOOK_REVIEWS:: blob becomes the distinct comments, not raw JSON. */
+      const fb = reviewFeedback(ev.reviewComment);
+      const reviewer = ev.reviewer || fb.reviewer;
+      return { kind: 'video-revisions', tag: editor ? [editor] : [], line: `\n${who(reviewer, '')} wants changes.`, extra: fb.comments.length ? '\n*Revision feedback:*\n' + fb.comments.map(quote).join('\n') : '' };
+    }
     case 'Approved': return { kind: 'final-approval', tag: [JENN], line: 'Final approval. Ready to go live.', extra: [link(ev.parentDrive, 'Drive folder'), link(ev.finalLink, 'Final cut')].filter(Boolean).join(' · ') };
     case 'Blocked': return { kind: 'blocked', tag: [strategist, OWNER], line: `Blocked${ev.blockedBy ? ' by ' + ev.blockedBy : ''}.`, extra: ev.blockerReason ? `> ${ev.blockerReason}` : '' };
     default: return null;
