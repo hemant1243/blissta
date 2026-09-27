@@ -126,6 +126,7 @@ async function handle(req, res, client) {
 
 /* Once a day, when the token is there. Also once at boot if the cache is empty or stale. */
 function schedule() {
+  console.log('[editors] data dir', store.DIR, fs.existsSync('/data') ? '(volume)' : '(no volume, wiped on deploy)');
   if (!meta.configured()) { console.log('[editors] Meta not configured, CSV upload only'); return; }
   const hour = Number(process.env.META_REFRESH_HOUR_UTC || 6);
   let lastDay = '';
