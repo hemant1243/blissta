@@ -9,6 +9,7 @@
    GET  /editors/api/dashboard       everything the page shows, scoped to the viewer
    admin only:
    PUT  /editors/api/editors [..]    the editor table (name, codes, slack)
+   GET  /editors/api/accounts        the ad accounts the token can read
    POST /editors/api/refresh         pull from Meta now
    POST /editors/api/csv             body = Ads Manager export (text/csv)
    POST /editors/api/override        {adId, proofAmount, proofStatus, videoUrl}
@@ -45,9 +46,9 @@ async function refresh() {
       const old = ads[id] || { months: {} };
       ads[id] = { ...old, ...ad, months: { ...(old.months || {}), ...ad.months } };
     }
-    const out = { ...cur, ads, api: new Date().toISOString(), fetchedAt: new Date().toISOString() };
+    const out = { ...cur, ads, accounts: fresh.accounts, api: new Date().toISOString(), fetchedAt: new Date().toISOString() };
     store.saveInsights(out);
-    console.log('[editors] Meta refresh:', Object.keys(fresh.ads).length, 'ads');
+    console.log('[editors] Meta refresh:', Object.keys(fresh.ads).length, 'ads from', fresh.accounts.map((a) => a.name).join(', '));
     return out;
   })().finally(() => { refreshing = null; });
   return refreshing;
@@ -94,7 +95,8 @@ async function handle(req, res, client) {
     if (!user) return send(res, 401, { error: 'sign in' });
     const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
     if (req.method === 'GET' && p === '/editors/api/dashboard') {
-      return send(res, 200, { ...model.dashboard({ raw: store.insights(), editors: store.editors(), overrides: store.overrides(), user, month }), metaConfigured: meta.configured() });
+      const raw = store.insights();
+      return send(res, 200, { ...model.dashboard({ raw, editors: store.editors(), overrides: store.overrides(), user, month }), metaConfigured: meta.configured(), accounts: user.role === 'admin' ? raw.accounts || [] : undefined });
     }
     if (user.role !== 'admin') return send(res, 403, { error: 'admins only' });
     if (req.method === 'PUT' && p === '/editors/api/editors') {
@@ -103,9 +105,13 @@ async function handle(req, res, client) {
       const clean = list.map((e) => ({ name: String(e.name || '').trim(), codes: [].concat(e.codes || []).map((c) => String(c).trim().toUpperCase()).filter(Boolean), slack: String(e.slack || '').trim() })).filter((e) => e.name);
       store.saveEditors(clean); return send(res, 200, { ok: true, editors: clean });
     }
+    if (req.method === 'GET' && p === '/editors/api/accounts') {
+      if (!meta.configured()) return send(res, 400, { error: 'Meta token not set on the server.' });
+      return send(res, 200, { accounts: await meta.accounts() });
+    }
     if (req.method === 'POST' && p === '/editors/api/refresh') {
-      if (!meta.configured()) return send(res, 400, { error: 'Meta is not configured on the server yet (META_ACCESS_TOKEN, META_AD_ACCOUNTS).' });
-      const out = await refresh(); return send(res, 200, { ok: true, ads: Object.keys(out.ads).length, fetchedAt: out.fetchedAt });
+      if (!meta.configured()) return send(res, 400, { error: 'Meta is not configured on the server yet (META_ACCESS_TOKEN).' });
+      const out = await refresh(); return send(res, 200, { ok: true, ads: Object.keys(out.ads).length, accounts: out.accounts, fetchedAt: out.fetchedAt });
     }
     if (req.method === 'POST' && p === '/editors/api/csv') { const r = importCsv(await readBody(req)); return send(res, 200, { ok: true, ...r }); }
     if (req.method === 'POST' && p === '/editors/api/override') {

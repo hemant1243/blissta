@@ -27,18 +27,18 @@ function findEditor(adName, editors) {
 function enrich(raw, editors, overrides, month) {
   const ov = (overrides || {})[raw.id] || {};
   const months = Object.keys(raw.months || {}).sort();
-  let spend = 0, value = 0, imp = 0, clicks = 0;
+  let spend = 0, value = 0, imp = 0, clicks = 0, purchases = 0;
   const series = [];
   let since = null; let cumS = 0, cumV = 0;
   for (const m of months) {
     const x = raw.months[m];
-    spend += x.spend; value += x.value; imp += x.impressions; clicks += x.clicks;
+    spend += x.spend; value += x.value; imp += x.impressions; clicks += x.clicks; purchases += x.purchases || 0;
     cumS += x.spend; cumV += x.value;
     if (!since && cumS >= WIN_SPEND && roas(cumV, cumS) >= WIN_ROAS) since = m;
-    series.push({ month: m, spend: r2(x.spend), value: r2(x.value), roas: r2(roas(x.value, x.spend)), ctr: x.impressions ? r2((x.clicks / x.impressions) * 100) : 0 });
+    series.push({ month: m, spend: r2(x.spend), value: r2(x.value), purchases: x.purchases || 0, roas: r2(roas(x.value, x.spend)), ctr: x.impressions ? r2((x.clicks / x.impressions) * 100) : 0, cpc: x.clicks ? r2(x.spend / x.clicks) : 0 });
   }
   const R = roas(value, spend);
-  const cur = raw.months[month] || { spend: 0, value: 0, impressions: 0, clicks: 0 };
+  const cur = raw.months[month] || { spend: 0, value: 0, purchases: 0, impressions: 0, clicks: 0 };
   const winner = spend >= WIN_SPEND && R >= WIN_ROAS;
   const active = /ACTIVE/i.test(raw.delivery || '') && !/PAUSED|DISAPPROVED|DELETED|ARCHIVED/i.test(raw.delivery || '');
   const status = winner && active && cur.spend > 0 && roas(cur.value, cur.spend) >= WIN_ROAS ? 'Scaling' : winner ? 'Winner' : 'Testing';
@@ -56,10 +56,10 @@ function enrich(raw, editors, overrides, month) {
   }
   const editor = findEditor(raw.name, editors);
   return {
-    id: raw.id, name: raw.name, account: raw.account, delivery: raw.delivery || '', status,
+    id: raw.id, name: raw.name, account: raw.account, accountName: raw.accountName || raw.account, delivery: raw.delivery || '', status,
     preview: raw.preview || '', thumb: raw.thumb || '', videoUrl: ov.videoUrl || raw.preview || (raw.videoId ? `https://www.facebook.com/${raw.videoId}` : ''),
-    spend: r2(spend), value: r2(value), roas: r2(R), ctr: imp ? r2((clicks / imp) * 100) : 0, impressions: imp,
-    month: { spend: r2(cur.spend), value: r2(cur.value), roas: r2(roas(cur.value, cur.spend)), ctr: cur.impressions ? r2((cur.clicks / cur.impressions) * 100) : 0 },
+    spend: r2(spend), value: r2(value), purchases, roas: r2(R), ctr: imp ? r2((clicks / imp) * 100) : 0, cpc: clicks ? r2(spend / clicks) : 0, impressions: imp, clicks,
+    month: { spend: r2(cur.spend), value: r2(cur.value), purchases: cur.purchases || 0, roas: r2(roas(cur.value, cur.spend)), ctr: cur.impressions ? r2((cur.clicks / cur.impressions) * 100) : 0, cpc: cur.clicks ? r2(cur.spend / cur.clicks) : 0 },
     firstMonth: months[0] || '', lastMonth: months[months.length - 1] || '',
     editor: editor ? { name: editor.name, slack: editor.slack, code: (editor.codes || [])[0] || '' } : null,
     bonus: { proof, winning: { eligible: !!since, since, months: winMonths, total: r2(winTotal) }, note: 'estimate, final amount confirmed by the company' },

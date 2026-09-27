@@ -69,18 +69,20 @@ function bonusCell(a) {
 }
 function adRows(list, admin) {
   return list.map((a) => `<tr>
-    <td><div><b>${esc(a.name)}</b></div><div class="muted">${a.editor ? esc(a.editor.name) : '<span class="err">unassigned</span>'} · ${esc(a.delivery || '')} · ${a.firstMonth}${a.lastMonth && a.lastMonth !== a.firstMonth ? ' to ' + a.lastMonth : ''}</div>
+    <td><div><b>${esc(a.name)}</b></div><div class="muted">${a.editor ? esc(a.editor.name) : '<span class="err">unassigned</span>'} · ${esc(a.accountName || '')} · ${esc(a.delivery || '')} · ${a.firstMonth}${a.lastMonth && a.lastMonth !== a.firstMonth ? ' to ' + a.lastMonth : ''}</div>
       ${a.videoUrl ? `<a href="${esc(a.videoUrl)}" target="_blank" rel="noopener">watch</a>` : '<span class="muted">no link</span>'}</td>
     <td>${tag(a.status)}</td>
     <td class="num">${money(a.spend)}<div class="muted">${money(a.month.spend)} this month</div></td>
     <td class="num">${a.roas.toFixed(2)}x<div class="muted">${a.month.roas.toFixed(2)}x this month</div></td>
     <td class="num">${a.ctr.toFixed(2)}%</td>
+    <td class="num">$${a.cpc.toFixed(2)}</td>
+    <td class="num">${a.purchases}<div class="muted">${a.month.purchases} this month</div></td>
     <td>${bonusCell(a)}${admin ? `<div class="row" style="margin-top:6px"><input placeholder="proof $" style="width:80px" value="${a.bonus.proof.amount || ''}" data-proof="${a.id}"><input placeholder="video url" style="width:160px" value="${esc((a.videoUrl || '') === a.preview ? '' : a.videoUrl)}" data-video="${a.id}"><button data-save="${a.id}">save</button></div>` : ''}</td>
   </tr>`).join('');
 }
 function table(list, admin) {
   if (!list.length) return '<p class="muted">No ads yet.</p>';
-  return `<div class="wrap"><table><thead><tr><th>Ad</th><th>Status</th><th class="num">Spend</th><th class="num">ROAS</th><th class="num">CTR</th><th>Bonus <span class="muted">(estimate, final amount confirmed by the company)</span></th></tr></thead><tbody>${adRows(list, admin)}</tbody></table></div>`;
+  return `<div class="wrap"><table><thead><tr><th>Ad</th><th>Status</th><th class="num">Spend</th><th class="num">ROAS</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">Purchases</th><th>Bonus <span class="muted">(estimate, final amount confirmed by the company)</span></th></tr></thead><tbody>${adRows(list, admin)}</tbody></table></div>`;
 }
 function render() {
   const d = D; const admin = d.user.role === 'admin';
@@ -98,7 +100,7 @@ function render() {
     body += `<h2>Top ads, ${d.month}</h2><div class="card wrap"><table><thead><tr><th>Ad</th><th>Editor</th><th>Status</th><th class="num">Spend</th><th class="num">ROAS</th></tr></thead><tbody>${d.board.topAds.map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.editor || '')}</td><td>${tag(a.status)}</td><td class="num">${money(a.spend)}</td><td class="num">${a.roas.toFixed(2)}x</td></tr>`).join('') || '<tr><td colspan=5 class="muted">Nothing yet</td></tr>'}</tbody></table></div>`;
   } else if (tab === 'admin') {
     const A = d.admin;
-    body += `<h2>Data</h2><div class="card"><div class="row"><button id="refresh" class="primary" ${d.metaConfigured ? '' : 'disabled'}>Pull from Meta now</button><span class="muted">${d.metaConfigured ? 'Daily at 06:00 UTC, plus on demand.' : 'Meta token not set on the server yet. CSV upload works meanwhile.'}</span></div>
+    body += `<h2>Data</h2><div class="card"><div class="row"><button id="refresh" class="primary" ${d.metaConfigured ? '' : 'disabled'}>Pull from Meta now</button><span class="muted">${d.metaConfigured ? 'Daily at 06:00 UTC, plus on demand.' + (d.accounts && d.accounts.length ? ' Accounts: ' + d.accounts.map((a) => esc(a.name)).join(', ') : '') : 'Meta token not set on the server yet. CSV upload works meanwhile.'}</span></div>
       <div class="row" style="margin-top:12px"><input type="file" id="csvf" accept=".csv,text/csv"><button id="csvb">Upload Ads Manager CSV</button><span class="muted">Ad level export, any date breakdown. Needs at least "Ad name" and "Amount spent" columns.</span></div><p id="dmsg" class="muted"></p></div>`;
     body += `<h2>Editors</h2><div class="card"><p class="muted">Codes are matched as whole words in the ad name, e.g. CORBEL_H3_SIMON. Several codes per editor, comma separated.</p><div class="wrap"><table id="etab"><thead><tr><th>Name</th><th>Codes</th><th>Slack ID</th><th></th></tr></thead><tbody>${A.editors.map((e, i) => `<tr><td><input value="${esc(e.name)}" data-n="${i}"></td><td><input value="${esc((e.codes || []).join(', '))}" data-c="${i}"></td><td><input value="${esc(e.slack || '')}" data-s="${i}"></td><td><button data-del="${i}">remove</button></td></tr>`).join('')}</tbody></table></div><div class="row" style="margin-top:10px"><button id="addrow">Add editor</button><button id="saveed" class="primary">Save table</button><span id="emsg" class="muted"></span></div></div>`;
     body += `<h2>Unassigned ads (${A.unassigned.length})</h2><div class="card">${A.unassigned.length ? `<div class="wrap"><table><thead><tr><th>Ad name</th><th class="num">Spend</th><th class="num">ROAS</th></tr></thead><tbody>${A.unassigned.map((a) => `<tr><td>${esc(a.name)}</td><td class="num">${money(a.spend)}</td><td class="num">${a.roas.toFixed(2)}x</td></tr>`).join('')}</tbody></table></div><p class="note">Add the missing code to an editor above and save; the match is instant.</p>` : '<p class="muted">Every ad with spend is matched to an editor.</p>'}</div>`;
