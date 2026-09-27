@@ -194,6 +194,18 @@ async function handle({ event, client, say }) {
    reviews            every place someone tagged Hemant or Jenn and neither answered, last 30 days
    reviews 7          same, last 7 days. Owners and Jenn only.
   */
+  /*
+   dashboard          Donnaa DMs a one-time link to the Editor Performance Dashboard. Editors and admins.
+  */
+  if (/^(?:dashboard|my dashboard|my ads|editor dashboard)$/i.test(firstLine)) {
+    const edAuth = require('./editors/auth');
+    const u = edAuth.userFor(event.user);
+    if (!u) { await say({ text: 'You are not on the editor list yet. Ask Hemant to add you.', thread_ts }); return; }
+    const base = process.env.EDITORS_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : '');
+    try { await edAuth.sendLink(client, u, base); await say({ text: 'Sent you a link in our DM. It works for 15 minutes.', thread_ts }); }
+    catch (e) { await say({ text: e.message, thread_ts }); }
+    return;
+  }
   const revM = firstLine.match(/^(?:reviews?|unreviewed|tagged|waiting on me|what am i tagged in)(?:\s+(\d+))?$/i);
   if (revM) {
     if (tier !== 'owner' && !/Approver/.test(chase.person(event.user).role)) { await say({ text: 'That list is for Hemant and Jenn.', thread_ts }); return; }

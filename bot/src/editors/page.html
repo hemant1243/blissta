@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor Dashboard</title>
+<style>
+:root { color-scheme: light dark; --bg:#f6f7f5; --card:#fff; --ink:#111; --muted:#6b7370; --line:#e1e4e0; --accent:#1e56c9; --good:#0a7d0a; --warn:#b36b00; --bad:#b3261e; --soft:#eef2fb; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0e1110; --card:#171b19; --ink:#f0f2f0; --muted:#8b938f; --line:#262b29; --accent:#6d9cf5; --good:#4fc34f; --warn:#f0b23a; --bad:#ff6b60; --soft:#1a2436; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; padding:0 16px 60px; }
+header { max-width:1200px; margin:0 auto; padding:18px 0; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+h1 { font-size:20px; margin:0; } h2 { font-size:17px; margin:26px 0 10px; } h3 { font-size:15px; margin:0 0 6px; }
+main { max-width:1200px; margin:0 auto; }
+.muted { color:var(--muted); font-size:13px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+.row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+button, .btn { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+input, select, textarea { font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); }
+table { width:100%; border-collapse:collapse; font-size:14px; } th, td { text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; font-size:12.5px; }
+td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
+.tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+.Testing { background:var(--soft); color:var(--accent); } .Winner { background:#e3f3e3; color:var(--good); } .Scaling { background:#fff3d1; color:var(--warn); }
+@media (prefers-color-scheme: dark) { .Winner { background:#14301a; } .Scaling { background:#3a2c10; } }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; } .tabs button.on { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+.stats { display:flex; gap:18px; flex-wrap:wrap; margin:8px 0 4px; } .stats div b { font-size:18px; display:block; }
+details summary { cursor:pointer; color:var(--accent); }
+.wrap { overflow-x:auto; }
+.note { font-size:12.5px; color:var(--muted); margin-top:8px; }
+.login { max-width:440px; margin:60px auto; }
+.err { color:var(--bad); } .ok { color:var(--good); }
+a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Editor Dashboard</h1><div class="muted" id="sub">Blissta ads, one place</div></div>
+  <div class="row" id="who"></div>
+</header>
+<main id="main"></main>
+<script>
+const $ = (s) => document.querySelector(s);
+const money = (n) => '$' + Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const api = async (path, opt) => { const r = await fetch('/editors/api/' + path, { credentials: 'same-origin', ...opt }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
+const tag = (s) => `<span class="tag ${s}">${s}</span>`;
+let D = null, tab = 'mine';
+
+function login(msg, cls) {
+  $('#who').innerHTML = '';
+  $('#main').innerHTML = `<div class="card login">
+    <h2 style="margin-top:0">Sign in</h2>
+    <p class="muted">Type your name, your editor code or your Slack handle. Donnaa sends you a one-time link in Slack.</p>
+    <form id="lf" class="row"><input id="whoin" placeholder="e.g. Simon" style="flex:1" autofocus><button class="primary">Send my link</button></form>
+    <p id="lmsg" class="${cls || 'muted'}">${esc(msg || '')}</p></div>`;
+  $('#lf').onsubmit = async (e) => { e.preventDefault(); const who = $('#whoin').value; $('#lmsg').textContent = 'Sending…';
+    try { const r = await api('login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ who }) }); $('#lmsg').className = 'ok'; $('#lmsg').textContent = `Sent. Check your Slack DMs from Donnaa, ${r.name}. The link works for 15 minutes.`; }
+    catch (err) { $('#lmsg').className = 'err'; $('#lmsg').textContent = err.message; } };
+}
+
+function bonusCell(a) {
+  const b = a.bonus; const parts = [];
+  parts.push(`<div>${b.proof.eligible ? '<b>Proof:</b> ' + esc(b.proof.label) : '<span class="muted">' + esc(b.proof.label) + '</span>'}</div>`);
+  if (b.winning.eligible) {
+    parts.push(`<div><b>Winning ad since ${b.winning.since}</b> · ${money(b.winning.total)} so far</div><details><summary>months</summary>${b.winning.months.map((m) => `<div>${m.month}: ${esc(m.label)} <span class="muted">(ROAS ${m.roas})</span></div>`).join('')}</details>`);
+  } else parts.push(`<div class="muted">Winning ad at $10K spend with 1.5+ ROAS</div>`);
+  return parts.join('');
+}
+function adRows(list, admin) {
+  return list.map((a) => `<tr>
+    <td><div><b>${esc(a.name)}</b></div><div class="muted">${a.editor ? esc(a.editor.name) : '<span class="err">unassigned</span>'} · ${esc(a.delivery || '')} · ${a.firstMonth}${a.lastMonth && a.lastMonth !== a.firstMonth ? ' to ' + a.lastMonth : ''}</div>
+      ${a.videoUrl ? `<a href="${esc(a.videoUrl)}" target="_blank" rel="noopener">watch</a>` : '<span class="muted">no link</span>'}</td>
+    <td>${tag(a.status)}</td>
+    <td class="num">${money(a.spend)}<div class="muted">${money(a.month.spend)} this month</div></td>
+    <td class="num">${a.roas.toFixed(2)}x<div class="muted">${a.month.roas.toFixed(2)}x this month</div></td>
+    <td class="num">${a.ctr.toFixed(2)}%</td>
+    <td>${bonusCell(a)}${admin ? `<div class="row" style="margin-top:6px"><input placeholder="proof $" style="width:80px" value="${a.bonus.proof.amount || ''}" data-proof="${a.id}"><input placeholder="video url" style="width:160px" value="${esc((a.videoUrl || '') === a.preview ? '' : a.videoUrl)}" data-video="${a.id}"><button data-save="${a.id}">save</button></div>` : ''}</td>
+  </tr>`).join('');
+}
+function table(list, admin) {
+  if (!list.length) return '<p class="muted">No ads yet.</p>';
+  return `<div class="wrap"><table><thead><tr><th>Ad</th><th>Status</th><th class="num">Spend</th><th class="num">ROAS</th><th class="num">CTR</th><th>Bonus <span class="muted">(estimate, final amount confirmed by the company)</span></th></tr></thead><tbody>${adRows(list, admin)}</tbody></table></div>`;
+}
+function render() {
+  const d = D; const admin = d.user.role === 'admin';
+  $('#who').innerHTML = `<span class="muted">${esc(d.user.name)} · ${admin ? 'admin' : 'editor'}</span><button id="out">Sign out</button>`;
+  $('#out').onclick = async () => { await api('logout', { method: 'POST' }); login('Signed out.'); };
+  $('#sub').textContent = d.fetchedAt ? `Data as of ${new Date(d.fetchedAt).toLocaleString()} · ${d.api ? 'Meta API' : ''}${d.api && d.csv ? ' + ' : ''}${d.csv ? 'CSV upload' : ''}` : 'No data loaded yet';
+  const t = d.totals;
+  const tabs = [['mine', admin ? 'All ads' : 'My ads'], ['board', 'Team board']]; if (admin) tabs.push(['admin', 'Admin']);
+  let body = `<div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+  if (tab === 'mine') {
+    body += `<div class="stats"><div><b>${t.ads}</b><span class="muted">ads</span></div><div><b>${money(t.spend)}</b><span class="muted">lifetime spend</span></div><div><b>${money(t.monthSpend)}</b><span class="muted">spend in ${d.month}</span></div><div><b>${t.winners}</b><span class="muted">winners</span></div><div><b>${money(t.bonus)}</b><span class="muted">winning bonus est.</span></div></div>`;
+    body += `<div class="card">${table(d.mine, admin)}<p class="note">Testing: under $10K lifetime spend. Winner: $10K+ at 1.5+ ROAS. Scaling: a winner still active and above 1.5 ROAS this month. Every bonus figure is an estimate, the final amount is confirmed by the company.</p></div>`;
+  } else if (tab === 'board') {
+    body += `<h2>Editors, ${d.month}</h2><div class="card wrap"><table><thead><tr><th>Editor</th><th class="num">Ads</th><th class="num">Winners</th><th class="num">Spend this month</th><th class="num">ROAS this month</th><th class="num">Lifetime spend</th><th class="num">Lifetime ROAS</th></tr></thead><tbody>${d.board.editors.map((e) => `<tr><td>${esc(e.name)}</td><td class="num">${e.ads}</td><td class="num">${e.winners}</td><td class="num">${money(e.monthSpend)}</td><td class="num">${e.monthRoas.toFixed(2)}x</td><td class="num">${money(e.spend)}</td><td class="num">${e.roas.toFixed(2)}x</td></tr>`).join('') || '<tr><td colspan=7 class="muted">Nothing yet</td></tr>'}</tbody></table></div>`;
+    body += `<h2>Top ads, ${d.month}</h2><div class="card wrap"><table><thead><tr><th>Ad</th><th>Editor</th><th>Status</th><th class="num">Spend</th><th class="num">ROAS</th></tr></thead><tbody>${d.board.topAds.map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.editor || '')}</td><td>${tag(a.status)}</td><td class="num">${money(a.spend)}</td><td class="num">${a.roas.toFixed(2)}x</td></tr>`).join('') || '<tr><td colspan=5 class="muted">Nothing yet</td></tr>'}</tbody></table></div>`;
+  } else if (tab === 'admin') {
+    const A = d.admin;
+    body += `<h2>Data</h2><div class="card"><div class="row"><button id="refresh" class="primary" ${d.metaConfigured ? '' : 'disabled'}>Pull from Meta now</button><span class="muted">${d.metaConfigured ? 'Daily at 06:00 UTC, plus on demand.' : 'Meta token not set on the server yet. CSV upload works meanwhile.'}</span></div>
+      <div class="row" style="margin-top:12px"><input type="file" id="csvf" accept=".csv,text/csv"><button id="csvb">Upload Ads Manager CSV</button><span class="muted">Ad level export, any date breakdown. Needs at least "Ad name" and "Amount spent" columns.</span></div><p id="dmsg" class="muted"></p></div>`;
+    body += `<h2>Editors</h2><div class="card"><p class="muted">Codes are matched as whole words in the ad name, e.g. CORBEL_H3_SIMON. Several codes per editor, comma separated.</p><div class="wrap"><table id="etab"><thead><tr><th>Name</th><th>Codes</th><th>Slack ID</th><th></th></tr></thead><tbody>${A.editors.map((e, i) => `<tr><td><input value="${esc(e.name)}" data-n="${i}"></td><td><input value="${esc((e.codes || []).join(', '))}" data-c="${i}"></td><td><input value="${esc(e.slack || '')}" data-s="${i}"></td><td><button data-del="${i}">remove</button></td></tr>`).join('')}</tbody></table></div><div class="row" style="margin-top:10px"><button id="addrow">Add editor</button><button id="saveed" class="primary">Save table</button><span id="emsg" class="muted"></span></div></div>`;
+    body += `<h2>Unassigned ads (${A.unassigned.length})</h2><div class="card">${A.unassigned.length ? `<div class="wrap"><table><thead><tr><th>Ad name</th><th class="num">Spend</th><th class="num">ROAS</th></tr></thead><tbody>${A.unassigned.map((a) => `<tr><td>${esc(a.name)}</td><td class="num">${money(a.spend)}</td><td class="num">${a.roas.toFixed(2)}x</td></tr>`).join('')}</tbody></table></div><p class="note">Add the missing code to an editor above and save; the match is instant.</p>` : '<p class="muted">Every ad with spend is matched to an editor.</p>'}</div>`;
+  }
+  $('#main').innerHTML = body;
+  document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+  document.querySelectorAll('[data-save]').forEach((b) => b.onclick = async () => {
+    const id = b.dataset.save; const proof = document.querySelector(`[data-proof="${id}"]`).value; const video = document.querySelector(`[data-video="${id}"]`).value;
+    try { await api('override', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ adId: id, proofAmount: proof, proofStatus: proof ? 'confirmed' : 'pending review', videoUrl: video }) }); await load(); } catch (e) { alert(e.message); }
+  });
+  if (tab === 'admin') {
+    $('#refresh').onclick = async () => { $('#dmsg').textContent = 'Pulling from Meta…'; try { const r = await api('refresh', { method: 'POST' }); $('#dmsg').textContent = `Done, ${r.ads} ads.`; await load(); } catch (e) { $('#dmsg').textContent = e.message; } };
+    $('#csvb').onclick = async () => { const f = $('#csvf').files[0]; if (!f) return; $('#dmsg').textContent = 'Uploading…'; try { const r = await api('csv', { method: 'POST', headers: { 'content-type': 'text/csv' }, body: await f.text() }); $('#dmsg').textContent = `Imported ${r.imported} ads from ${r.rows} rows.`; await load(); } catch (e) { $('#dmsg').textContent = e.message; } };
+    const readTable = () => [...document.querySelectorAll('#etab tbody tr')].map((tr) => ({ name: tr.querySelector('[data-n]').value, codes: tr.querySelector('[data-c]').value.split(',').map((s) => s.trim()).filter(Boolean), slack: tr.querySelector('[data-s]').value.trim() }));
+    $('#addrow').onclick = () => { D.admin.editors = readTable().concat([{ name: '', codes: [], slack: '' }]); render(); };
+    document.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => { const list = readTable(); list.splice(Number(b.dataset.del), 1); D.admin.editors = list; render(); });
+    $('#saveed').onclick = async () => { try { await api('editors', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(readTable()) }); $('#emsg').textContent = 'Saved.'; await load(); } catch (e) { $('#emsg').textContent = e.message; } };
+  }
+}
+async function load() {
+  try { D = await api('dashboard'); render(); }
+  catch (e) { if (/sign in/i.test(e.message)) login(); else { $('#main').innerHTML = `<p class="err">${esc(e.message)}</p>`; } }
+}
+load();
+</script>
+</body>
+</html>

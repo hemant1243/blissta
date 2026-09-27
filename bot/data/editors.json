@@ -1,0 +1,11 @@
+[
+  { "name": "Simon Quetulio", "codes": ["SIMON"], "slack": "U0BSWMF4YBZ" },
+  { "name": "Mechaella Lago", "codes": ["MECA", "MECHAELLA"], "slack": "U09660RPC66" },
+  { "name": "Jhon Norvy Abad", "codes": ["JHON", "ABAD"], "slack": "U0BGWMZSZHS" },
+  { "name": "Ruth Jireh Dizon", "codes": ["RUTH"], "slack": "U0C2A8ECNCS" },
+  { "name": "Edjill Parco", "codes": ["EDJILL"], "slack": "U0AQX1JKYGP" },
+  { "name": "Ibad Ali", "codes": ["IBAD"], "slack": "U0BSVB9JLBT" },
+  { "name": "Lillybel Parma", "codes": ["BELLE", "LILLYBEL"], "slack": "U0BLA6D4HNV" },
+  { "name": "Muhammad Abbas", "codes": ["ABBAS"], "slack": "U0BMD771WCW" },
+  { "name": "Suhan Shaikh", "codes": ["SUHAN"], "slack": "U0BP93BFCBA" }
+]

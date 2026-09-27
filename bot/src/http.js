@@ -6,9 +6,11 @@
    GET  /            health, "ok"
    POST /tracker     JSON {events:[...]} or one event, header X-Tracker-Secret must match
                      TRACKER_SECRET. Add ?dry=1 to see what would be posted without posting.
+   /editors/*        Editor Performance Dashboard, see src/editors/index.js
 */
 const http = require('http');
 const tracker = require('./tracker');
+const editors = require('./editors');
 
 function readBody(req, limit = 1 << 20) {
   return new Promise((resolve, reject) => {
@@ -25,6 +27,7 @@ function start(client) {
   const srv = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) return send(res, 200, { ok: true, bot: 'donnaa' });
+    if (url.pathname === '/editors' || url.pathname.startsWith('/editors/')) return editors.handle(req, res, client);
     if (url.pathname !== '/tracker') return send(res, 404, { error: 'not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
     if (!tracker.verify(req)) return send(res, 401, { error: 'bad secret' });
@@ -42,6 +45,7 @@ function start(client) {
     send(res, 200, { ok: true, dryRun, results });
   });
   srv.listen(port, () => console.log('[http] listening on', port));
+  editors.schedule();
   return srv;
 }
 module.exports = { start };

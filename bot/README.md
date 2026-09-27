@@ -68,3 +68,15 @@ She posts into one channel, `#creative-accountability` (env `TRACKER_CHANNEL`, c
 `Editing` is not posted, nothing changes hands there. People are matched from the tracker's email, then name, through `data/people.json`; someone with no Slack account is named in bold instead of tagged. Tagged people are invited to the channel automatically.
 
 Env: `TRACKER_SECRET` (shared with the Apps Script), `TRACKER_CHANNEL` (default `creative-accountability`), `PORT` (Railway sets it). `GET /` answers `{ok:true}`. `POST /tracker?dry=1` returns what would be posted without posting. Installing the script on the sheet: Extensions → Apps Script, paste the file with the real secret, run `setup` once and allow permissions. The first run only snapshots the sheet; old rows are never posted. `teardown` removes the triggers.
+
+## Editor Performance Dashboard (src/editors/)
+
+Hemant's ask, 27 Sep 2026. Every editor sees how their ads perform without touching Meta Business Manager. Only the server talks to Meta. Lives at `https://<railway domain>/editors`; the Creative Tracker links to it.
+
+- **Data**: Meta Marketing API, read only, System User token with `ads_read`. Env: `META_ACCESS_TOKEN`, `META_AD_ACCOUNTS` (comma separated, `act_` optional), `META_SINCE` (default 2025-01-01), `META_REFRESH_HOUR_UTC` (default 6). Ad level insights by month: spend, purchase value, impressions, clicks, plus ad status and the preview link. Pulled once a day and on demand from the Admin tab. Fallback: upload an Ads Manager CSV export (ad level, any date breakdown); API months win over CSV months for the same ad.
+- **Storage**: a Railway volume mounted at `/data` (`/data/editors/*.json`): insights cache, the editor table, admin overrides (confirmed proof bonus, video link). Without the volume it falls back to `bot/data-runtime`, which a redeploy wipes. `EDITORS_DATA_DIR` overrides the path.
+- **Who made which ad**: the ad name carries the editor code (`CORBEL_H3_SIMON`). Codes are matched as whole words. The table (name, codes, Slack ID) is seeded from `data/editors.json` and edited from the Admin tab. Ads with spend and no match sit in the admin-only Unassigned list.
+- **Login**: no passwords. Type a name, code or Slack handle; Donnaa DMs a one-time link (15 minutes) that sets a signed cookie for 30 days (`EDITORS_SECRET`). Admins: `EDITORS_ADMINS` (default Hemant, Bruce, Jenn). Editors see My Ads and the Team Board; admins see every ad, the editor table, unassigned ads, CSV upload and the Meta refresh button.
+- **Status**: Testing (under $10K lifetime), Winner ($10K+ at 1.5+ ROAS), Scaling (a winner that is active and above 1.5 ROAS this month).
+- **Bonus estimate**: $5K lifetime spend → Proof Bonus, $100 to $300, "pending review" until an admin types the confirmed amount. $10K lifetime at 1.5+ ROAS → Winning Ad; from that month on 1% of spend for every month at 1.5+ ROAS, no cap; months under 1.5 show "Scale bonus: set by company". Every figure is labelled an estimate, final amount confirmed by the company.
+- **Later**: the Winning Ads feed from Slack channel C09BQB262VB through the Donnaa endpoint.
