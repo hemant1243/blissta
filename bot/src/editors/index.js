@@ -136,13 +136,14 @@ function schedule() {
   if (!meta.configured()) { console.log('[editors] Meta not configured, CSV upload only'); return; }
   const hour = Number(process.env.META_REFRESH_HOUR_UTC || 6);
   let lastDay = '';
+  let lastFail = 0; // after a failed pull wait 6h before trying again, so a blocked token is not hammered
   const tick = async () => {
     const now = new Date(); const day = now.toISOString().slice(0, 10);
     const cur = store.insights();
     const stale = !cur.api || Date.now() - new Date(cur.api).getTime() > 26 * 3600000;
-    if ((now.getUTCHours() === hour && lastDay !== day) || stale) {
+    if (((now.getUTCHours() === hour && lastDay !== day) || stale) && Date.now() - lastFail > 6 * 3600000) {
       lastDay = day;
-      try { await refresh(); } catch (e) { console.error('[editors] Meta refresh failed:', e.message); }
+      try { await refresh(); lastFail = 0; } catch (e) { lastFail = Date.now(); console.error('[editors] Meta refresh failed, next try in 6h:', e.message); }
     }
   };
   setTimeout(tick, 20000); setInterval(tick, 10 * 60000);
