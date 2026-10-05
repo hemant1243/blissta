@@ -10,6 +10,7 @@
     shippingCostPerOrder: 6.50, // what you pay the carrier / 3PL per order
     feePct: 0.029,              // payment processing
     feeFixed: 0.30,
+    breakEvenRoas: 1.35,        // Hemant, 5 Oct 2026: ROAS below this loses money
     adDaily: { meta: 4000, google: 800, tiktok: 500, other: 0 }, // placeholder daily spend
     adOverrides: {},            // { 'YYYY-MM-DD': { meta: 1234, ... } }
     fixedMonthly: [
@@ -171,16 +172,23 @@
     var mtd = sumRows(mtdRows, 'MTD');
     var l7 = sumRows(daily.filter(function (r) { return r.date <= y.date; }).slice(-7), 'L7');
     var prev7 = sumRows(daily.filter(function (r) { return r.date <= y.date; }).slice(-14, -7), 'P7');
+    var be = num(costs.breakEvenRoas != null ? costs.breakEvenRoas : DEFAULT_COSTS.breakEvenRoas);
+    var vsBe = function (r) { return be ? ' (break-even ' + be.toFixed(2) + 'x)' : ''; };
     var lines = [];
     lines.push('*Blissta morning report — ' + y.date + '*');
     lines.push('');
     lines.push('*Yesterday*');
     lines.push('Revenue ' + fmtMoney(y.revenue) + ' (' + fmtChange(pctChange(y.revenue, an.trailing.revenue)) + ' vs 7-day avg) · ' + y.orders + ' orders · AOV ' + fmtMoney(y.aov));
-    lines.push('Net profit ' + fmtMoney(y.netProfit) + ' · margin ' + fmtPct(y.margin) + ' · ad spend ' + fmtMoney(y.adSpend) + ' · ROAS ' + y.roas.toFixed(2) + 'x');
+    lines.push('Net profit ' + fmtMoney(y.netProfit) + ' · margin ' + fmtPct(y.margin) + ' · ad spend ' + fmtMoney(y.adSpend) + ' · ROAS ' + y.roas.toFixed(2) + 'x' + vsBe(y.roas));
+    if (be && y.adSpend > 0) {
+      lines.push(y.roas < be
+        ? ':red_circle: ROAS ' + y.roas.toFixed(2) + 'x is BELOW break-even ' + be.toFixed(2) + 'x'
+        : ':large_green_circle: ROAS ' + y.roas.toFixed(2) + 'x is above break-even ' + be.toFixed(2) + 'x');
+    }
     lines.push('Refunds ' + fmtMoney(y.refunds) + ' (' + fmtPct(y.refundRate) + ' of gross) · new customers ' + y.newCustomers + ' · returning ' + y.returningCustomers);
     lines.push('');
     lines.push('*Last 7 days vs previous 7*');
-    lines.push('Revenue ' + fmtMoney(l7.revenue) + ' (' + fmtChange(pctChange(l7.revenue, prev7.revenue)) + ') · net profit ' + fmtMoney(l7.netProfit) + ' (' + fmtChange(pctChange(l7.netProfit, prev7.netProfit)) + ') · margin ' + fmtPct(l7.margin));
+    lines.push('Revenue ' + fmtMoney(l7.revenue) + ' (' + fmtChange(pctChange(l7.revenue, prev7.revenue)) + ') · net profit ' + fmtMoney(l7.netProfit) + ' (' + fmtChange(pctChange(l7.netProfit, prev7.netProfit)) + ') · margin ' + fmtPct(l7.margin) + ' · ads ' + fmtMoney(l7.adSpend) + ' · ROAS ' + l7.roas.toFixed(2) + 'x');
     lines.push('');
     lines.push('*Month to date (' + mtd.days + ' days)*');
     lines.push('Revenue ' + fmtMoney(mtd.revenue) + ' · COGS ' + fmtMoney(mtd.cogs) + ' · shipping ' + fmtMoney(mtd.shippingCost) + ' · fees ' + fmtMoney(mtd.fees) + ' · ads ' + fmtMoney(mtd.adSpend) + ' · fixed ' + fmtMoney(mtd.fixed));
