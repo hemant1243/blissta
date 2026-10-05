@@ -41,6 +41,18 @@ async function all(url, params) {
 }
 const pick = (arr, types) => { for (const t of types) { const hit = (arr || []).find((a) => a.action_type === t); if (hit) return Number(hit.value || 0); } return 0; };
 
+/* [[firstDay, lastDay], ...] for every calendar month from since to until (YYYY-MM-DD). */
+function monthRanges(since, until) {
+  const out = []; let d = new Date(since.slice(0, 7) + '-01T00:00:00Z');
+  while (d.toISOString().slice(0, 10) <= until) {
+    const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+    const last = new Date(next - 864e5).toISOString().slice(0, 10);
+    out.push([d.toISOString().slice(0, 10) < since ? since : d.toISOString().slice(0, 10), last < until ? last : until]);
+    d = next;
+  }
+  return out;
+}
+
 /* The ad accounts this token can read: [{id:'act_..', name, status}] */
 async function accounts() {
   if (!TOKEN) throw new Error('META_ACCESS_TOKEN not set');
@@ -56,19 +68,24 @@ async function pull() {
   const ads = {};
   const accts = await accounts();
   for (const { id: acct, name: acctName } of accts) {
-    const meta = await all(`${API}/${acct}/ads`, { fields: 'id,name,effective_status,preview_shareable_link,creative{thumbnail_url,video_id}', limit: '500' });
+    const meta = await all(`${API}/${acct}/ads`, { fields: 'id,name,effective_status,preview_shareable_link,creative{thumbnail_url,video_id}', limit: '200' });
     for (const a of meta) ads[a.id] = { id: a.id, name: a.name, account: acct, accountName: acctName, delivery: a.effective_status, preview: a.preview_shareable_link || '', thumb: (a.creative && a.creative.thumbnail_url) || '', videoId: (a.creative && a.creative.video_id) || '', months: {} };
-    const rows = await all(`${API}/${acct}/insights`, {
-      level: 'ad', fields: 'ad_id,ad_name,spend,impressions,clicks,actions,action_values',
-      time_increment: 'monthly', time_range: { since: SINCE, until }, limit: '500',
-    });
-    for (const r of rows) {
-      const ad = ads[r.ad_id] || (ads[r.ad_id] = { id: r.ad_id, name: r.ad_name, account: acct, accountName: acctName, delivery: '', preview: '', thumb: '', videoId: '', months: {} });
-      const m = String(r.date_start).slice(0, 7);
-      const cur = ad.months[m] || { spend: 0, value: 0, purchases: 0, impressions: 0, clicks: 0 };
-      cur.spend += Number(r.spend || 0); cur.impressions += Number(r.impressions || 0); cur.clicks += Number(r.clicks || 0);
-      cur.value += pick(r.action_values, PURCHASE_TYPES); cur.purchases += pick(r.actions, PURCHASE_TYPES);
-      ad.months[m] = cur;
+    // One month per request and only ads that spent: big accounts make Meta refuse
+    // ("Please reduce the amount of data") when a single call covers many months.
+    for (const [mSince, mUntil] of monthRanges(SINCE, until)) {
+      const rows = await all(`${API}/${acct}/insights`, {
+        level: 'ad', fields: 'ad_id,ad_name,spend,impressions,clicks,actions,action_values',
+        time_range: { since: mSince, until: mUntil }, limit: '100',
+        filtering: [{ field: 'spend', operator: 'GREATER_THAN', value: 0 }],
+      });
+      for (const r of rows) {
+        const ad = ads[r.ad_id] || (ads[r.ad_id] = { id: r.ad_id, name: r.ad_name, account: acct, accountName: acctName, delivery: '', preview: '', thumb: '', videoId: '', months: {} });
+        const m = mSince.slice(0, 7);
+        const cur = ad.months[m] || { spend: 0, value: 0, purchases: 0, impressions: 0, clicks: 0 };
+        cur.spend += Number(r.spend || 0); cur.impressions += Number(r.impressions || 0); cur.clicks += Number(r.clicks || 0);
+        cur.value += pick(r.action_values, PURCHASE_TYPES); cur.purchases += pick(r.actions, PURCHASE_TYPES);
+        ad.months[m] = cur;
+      }
     }
   }
   return { ads, accounts: accts };
