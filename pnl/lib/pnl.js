@@ -184,6 +184,9 @@
       lines.push(y.roas < be
         ? ':red_circle: ROAS ' + y.roas.toFixed(2) + 'x is BELOW break-even ' + be.toFixed(2) + 'x'
         : ':large_green_circle: ROAS ' + y.roas.toFixed(2) + 'x is above break-even ' + be.toFixed(2) + 'x');
+      // Hemant's own rule: break-even ROAS covers every running cost, so profit = sales / be - ads.
+      lines.push('Profit by the ' + be.toFixed(2) + 'x rule (sales ÷ ' + be.toFixed(2) + ' − ads): ' + fmtMoney(y.revenue / be - y.adSpend) +
+        ' yesterday · ' + fmtMoney(l7.revenue / be - l7.adSpend) + ' last 7 days');
     }
     lines.push('Refunds ' + fmtMoney(y.refunds) + ' (' + fmtPct(y.refundRate) + ' of gross) · new customers ' + y.newCustomers + ' · returning ' + y.returningCustomers);
     lines.push('');
