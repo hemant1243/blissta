@@ -39,12 +39,16 @@ if (!live.clips || live.clips.length < 1000) throw new Error(`live page has only
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-merge-'));
 const inc = path.join(tmp, 'inc');
 fs.mkdirSync(inc);
+/* product folders keep the name already on the page (Drive renames, e.g. "Corvael" -> "CORBEL", must not split a product) */
+const productName = {};
+for (const [name, p] of Object.entries((live.folders && live.folders.products) || {})) if (p.id) productName[p.id] = name;
 let n = 0;
 const copyDir = (dir) => {
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.json')) continue;
     const j = readJson(path.join(dir, f));
-    fs.writeFileSync(path.join(inc, `l${n++}.json`), JSON.stringify(j.files ? j : { files: [j] }));
+    const files = (j.files || [j]).map((x) => (productName[x.id] ? Object.assign({}, x, { title: productName[x.id] }) : x));
+    fs.writeFileSync(path.join(inc, `l${n++}.json`), JSON.stringify({ files }));
   }
 };
 copyDir(listingDir);
