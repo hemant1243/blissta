@@ -17,7 +17,10 @@ the login comes from the `HF_EMAIL` / `HF_PASS` env vars of the runner.
 
 - `POST clerk.higgsfield.ai/v1/client/sign_ins` returns **429
   `too_many_requests`**. This happened on the first attempt and again on one retry
-  5 minutes later. Retries are paused so the shared account doesn't get locked.
+  5 minutes later, and again 30 minutes after that.
+- The email-code fallback (`signIn.create` → email_code) gets the same `too_many_requests` before any code
+  is sent. The limit is on creating sign-ins from this runner, not on the password itself.
+- Login attempts have stopped for this session.
 - No sessions snapshot yet, so `log.jsonl` has not been started.
 
 ## Scripts (in this folder)
