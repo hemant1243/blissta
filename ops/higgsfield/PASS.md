@@ -20,6 +20,6 @@ J = /root/.claude/projects/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf06
    - any off-brand prompt
    Message: short and human. Title "🚨 Higgsfield: clip deleted" / "🚨 Higgsfield: not our product".
    Proof table: Pakistan time | US Eastern | tool | credits, plus prompt (first 120 chars) and the saved
-   clip link for deleted/off-brand clips. End: "Who was logged in at that minute: higgsfield.ai/me/settings/sessions".
+   clip link for deleted/off-brand clips. Deleted clips have a saved_copy file (our own copy, the Higgsfield link dies on delete): send it to Hemant with SendUserFile in the same turn so he has the video as proof. End: "Who was logged in at that minute: higgsfield.ai/me/settings/sessions".
    Never post passwords or tokens.
 6. If Higgsfield tools fail with an auth error, post once per day in #blissta-ops that the connector needs reconnecting.

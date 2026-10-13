@@ -2,6 +2,8 @@
 // someone deletes it we still have the proof. Also flags paid spends that never showed up as a clip.
 // Usage: node watch5.js <state.json> <transactions.json> <generations.json>
 const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
 const [stateFile, txFile, genFile] = process.argv.slice(2);
 const load = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return j.items || j; };
 const fam = s => (s || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ')[0];
@@ -11,11 +13,21 @@ const now = Date.now();
 const gens = load(genFile).map(g => ({
   id: g.id, model: g.model, status: g.status, fam: fam(g.model), ts: Math.round(g.createdAt * 1000),
   prompt: String(g.params?.prompt || (g.params?.multi_prompt || []).map(p => p.prompt || p).join(' | ') || '').slice(0, 300),
-  url: g.results?.rawUrl || null,
+  url: g.results?.rawUrl || null, min: g.results?.minUrl || null,
 }));
 const ids = new Set(gens.map(g => g.id));
 const oldest = Math.min(...gens.map(g => g.ts));
 
+// 0. keep our own copy of every finished clip (video, or small preview for images): Higgsfield's link dies on delete
+const cache = path.join(path.dirname(stateFile), 'cache');
+fs.mkdirSync(cache, { recursive: true });
+for (const g of gens) {
+  const src = /\.mp4$/.test(g.url || '') ? g.url : (g.min || g.url);
+  const old = st.seen[g.id];
+  if (!src || old?.saved) continue;
+  const file = path.join(cache, g.id + path.extname(src.split('?')[0]));
+  try { execFileSync('curl', ['-sf', '--max-time', '60', '-o', file, src]); g.saved = file; } catch { try { fs.unlinkSync(file); } catch {} }
+}
 // 1. clips we saw before that are gone now = deleted (with proof)
 const deleted = [];
 for (const [id, g] of Object.entries(st.seen)) {
@@ -26,7 +38,7 @@ const fresh = [];
 for (const g of gens) {
   const old = st.seen[g.id];
   if (!old) fresh.push(g);
-  st.seen[g.id] = { ...old, ...g, url: g.url || old?.url || null };
+  st.seen[g.id] = { ...old, ...g, url: g.url || old?.url || null, saved: g.saved || old?.saved || null };
 }
 // 3. spends with no clip (made and deleted before we ever saw it), older than 10 min, not yet reported
 const tx = load(txFile).map(t => ({ ...t, ts: Date.parse(t.created_at), fam: fam(t.display_name) }));
@@ -51,6 +63,8 @@ const ghost = left;
 for (const s of ghost) st.alerted[s.created_at] = now;
 // forget anything older than 3 days
 for (const [id, g] of Object.entries(st.seen)) if (now - g.ts > 3 * 864e5) delete st.seen[id];
+// drop cached copies after 2 days unless the clip was deleted (that copy is the proof)
+for (const g of Object.values(st.seen)) if (g.saved && !g.gone && now - g.ts > 2 * 864e5) { try { fs.unlinkSync(g.saved); } catch {} g.saved = null; }
 for (const [k, v] of Object.entries(st.alerted)) if (now - v > 3 * 864e5) delete st.alerted[k];
 fs.writeFileSync(stateFile, JSON.stringify(st));
 
@@ -60,7 +74,7 @@ const t = ms => ({
 });
 const credits = s => Math.abs(s.credits);
 console.log(JSON.stringify({
-  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url })),
+  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url, saved_copy: g.saved || null })),
   paid_no_clip: ghost.map(s => ({ ...t(s.ts), model: s.display_name, credits: credits(s) })),
   paid_no_clip_credits: ghost.reduce((n, s) => n + credits(s), 0),
   new_prompts: fresh.filter(g => g.prompt).map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 120), id: g.id })),
