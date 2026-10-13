@@ -32,19 +32,22 @@ for (const g of gens) {
 const tx = load(txFile).map(t => ({ ...t, ts: Date.parse(t.created_at), fam: fam(t.display_name) }));
 const all = Object.values(st.seen);
 const used = new Set();
-const ghost = [];
-for (const s of tx.filter(t => t.action === 'spend').sort((a, b) => a.ts - b.ts)) {
-  if (now - s.ts < 10 * 60e3 || s.ts < oldest || st.alerted[s.created_at]) continue;
-  let best = null;
-  for (const g of all) {
-    if (used.has(g.id) || g.fam !== s.fam) continue;
-    const d = Math.abs(g.ts - s.ts);
-    if (d <= 150e3 && (!best || d < Math.abs(best.ts - s.ts))) best = g;
-  }
-  if (best && !best.gone) { used.add(best.id); continue; }
-  if (best) used.add(best.id); // matched a clip we caught being deleted: already in `deleted`
-  else ghost.push(s);
+// match tight first (spend and job are usually <1s apart), then loosen, so one miss can't cascade
+let left = tx.filter(t => t.action === 'spend' && now - t.ts >= 10 * 60e3 && t.ts >= oldest && !st.alerted[t.created_at])
+  .sort((a, b) => a.ts - b.ts);
+for (const tol of [5e3, 30e3, 150e3]) {
+  left = left.filter(s => {
+    let best = null;
+    for (const g of all) {
+      if (used.has(g.id) || g.fam !== s.fam) continue;
+      const d = Math.abs(g.ts - s.ts);
+      if (d <= tol && (!best || d < Math.abs(best.ts - s.ts))) best = g;
+    }
+    if (best) { used.add(best.id); return false; } // a clip we caught being deleted is already in `deleted`
+    return true;
+  });
 }
+const ghost = left;
 for (const s of ghost) st.alerted[s.created_at] = now;
 // forget anything older than 3 days
 for (const [id, g] of Object.entries(st.seen)) if (now - g.ts > 3 * 864e5) delete st.seen[id];
