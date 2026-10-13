@@ -14,6 +14,7 @@ const gens = load(genFile).map(g => ({
   id: g.id, model: g.model, status: g.status, fam: fam(g.model), ts: Math.round(g.createdAt * 1000),
   prompt: String(g.params?.prompt || (g.params?.multi_prompt || []).map(p => p.prompt || p).join(' | ') || '').slice(0, 300),
   url: g.results?.rawUrl || null, min: g.results?.minUrl || null,
+  start_image: (g.params?.medias || []).map(m => m.data?.url || m.url || m.value).find(u => /^https?:/.test(u || '')) || null,
 }));
 const ids = new Set(gens.map(g => g.id));
 const oldest = Math.min(...gens.map(g => g.ts));
@@ -74,7 +75,7 @@ const t = ms => ({
 });
 const credits = s => Math.abs(s.credits);
 console.log(JSON.stringify({
-  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url, saved_copy: g.saved || null })),
+  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url, start_image: g.start_image || null, saved_copy: g.saved || null })),
   paid_no_clip: ghost.map(s => ({ ...t(s.ts), model: s.display_name, credits: credits(s) })),
   paid_no_clip_credits: ghost.reduce((n, s) => n + credits(s), 0),
   new_prompts: fresh.filter(g => g.prompt).map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 120), id: g.id })),
