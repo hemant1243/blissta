@@ -29,7 +29,7 @@ const FOLDER = 'application/vnd.google-apps.folder';
 const NAME_RE = /^([A-Za-z0-9]+)_([A-Za-z0-9]+)_(\d{4}-\d{2}-\d{2})_(.+?)_v(\d+)\.([A-Za-z0-9]+)$/;
 const CHUNK = 400;
 const PRODUCTS = [
-  { name: 'Corvael', re: /corvael|natto|artery|arteries|blood ?pressure|cholesterol/i },
+  { name: 'Corvael', re: /corvael|corbel|corvel|natto|artery|arteries|blood ?pressure|cholesterol/i },
   { name: 'MB Gummies', re: /\bmbg\b|gummi|ultra ?blue|methylene|\bmb\b/i },
   { name: 'PEA', re: /\bpea\b|painbloc|pain ?bloc|palmitoyl/i },
 ];
