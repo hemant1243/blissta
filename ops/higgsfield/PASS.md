@@ -25,3 +25,5 @@ J = /root/.claude/projects/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf06
 6. If Higgsfield tools fail with an auth error, post once per day in #blissta-ops that the connector needs reconnecting.
 
 The brief index (brief_index.json) maps every #creative-accountability handoff to its editor and script lines. Refresh it weekly from the Donnaa handoffs in C0C50D81ZUY.
+
+devices.json maps sessions-page rows (device + Chrome version + city) to people. When Hemant sends a sessions screenshot after an alert, name the device(s) active at the alert minute using it.
