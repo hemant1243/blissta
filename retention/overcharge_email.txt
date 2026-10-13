@@ -1,0 +1,23 @@
+OVERCHARGE APOLOGY EMAIL (send from Zoho, hello@blissta.co, one per customer)
+Fill the {fields} from overcharge_refunds.csv. If a customer has 2 rows, add both amounts together.
+Send ONLY after the refund is done in Checkout Champ AND their subscription is fixed.
+
+Subject: We overcharged you, and we've refunded it
+
+Hi {first_name},
+
+We made a mistake, and I want to fix it properly.
+
+On {charge_date} we charged ${charged} to your card ending {card_last4} for your {product} subscription. That is not the price you signed up for. It was our error, not yours.
+
+We have refunded the full ${to_refund}. Depending on your bank it can take 5 to 10 business days to show. You don't need to do anything.
+
+We have also fixed your subscription so this can't happen again. From now on it is ${new_price} for {bottles} bottles every 84 days, the same price you paid when you first ordered.
+
+If you'd still like the bottles from that order, just reply "yes" and we'll charge the correct ${new_price} and ship them right away. If you'd rather cancel, reply "cancel" and it's done. No questions.
+
+I'm sorry for the trouble this caused.
+
+Hemant
+Blissta
+hello@blissta.co | +1 (917) 920-7685
