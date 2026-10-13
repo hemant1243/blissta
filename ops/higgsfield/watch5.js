@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { match } = require('./brief');
 const [stateFile, txFile, genFile] = process.argv.slice(2);
 const load = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return j.items || j; };
 const fam = s => (s || '').toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ')[0];
@@ -74,9 +75,10 @@ const t = ms => ({
   et: new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }),
 });
 const credits = s => Math.abs(s.credits);
+const brief = p => { const m = match(p); return m && { title: m.title, video_id: m.video_id, editor: m.editor, sure: m.sure, also: m.also.map(a => a.editor + ': ' + a.title) }; };
 console.log(JSON.stringify({
-  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url, start_image: g.start_image || null, saved_copy: g.saved || null })),
+  deleted: deleted.map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 150), link: g.url, start_image: g.start_image || null, saved_copy: g.saved || null, brief: brief(g.prompt) })),
   paid_no_clip: ghost.map(s => ({ ...t(s.ts), model: s.display_name, credits: credits(s) })),
   paid_no_clip_credits: ghost.reduce((n, s) => n + credits(s), 0),
-  new_prompts: fresh.filter(g => g.prompt).map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 120), id: g.id })),
+  new_prompts: fresh.filter(g => g.prompt).map(g => ({ ...t(g.ts), model: g.model, prompt: g.prompt.slice(0, 120), id: g.id, brief: brief(g.prompt)?.editor || null })),
 }));
