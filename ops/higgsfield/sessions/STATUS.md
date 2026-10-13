@@ -20,6 +20,18 @@ the login comes from the `HF_EMAIL` / `HF_PASS` env vars of the runner.
   5 minutes later. Retries are paused so the shared account doesn't get locked.
 - No sessions snapshot yet, so `log.jsonl` has not been started.
 
+## Scripts (in this folder)
+
+- `snapshot.cjs [--relogin]`: one JSON line of active sessions. Uses the Clerk `/v1/me/sessions…` JSON the page
+  loads, falling back to Clerk's `user.getSessions()`. Exit 3 = logged out.
+- `login-code.cjs <codeFile>`: email-code login, the fallback when the password form gets 429. Email code is
+  enabled in Higgsfield's Clerk config.
+- `diff.cjs`: alert lines for a new session, or an existing one with a new IP or country.
+- `loop.sh`: snapshot every 5 min into `log.jsonl` and `latest.json`, push every 10 min if changed, one
+  re-login when logged out. Needs `STATE` (a directory outside the repo) and optionally `HF_PROFILE`.
+
+Lockout policy (Clerk): 20 failed attempts → 60 min lock. The 429s above are rate limits, not failed attempts.
+
 ## Next
 
 - After a successful login, sessions are probably read from Clerk's
