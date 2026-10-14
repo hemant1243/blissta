@@ -22,6 +22,10 @@ J = /root/.claude/projects/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf06
    Proof table: Pakistan time | US Eastern | tool | credits, plus prompt (first 120 chars) and the saved
    clip link for deleted/off-brand clips. Deleted clips have a saved_copy file (our own copy, the Higgsfield link dies on delete): send it to Hemant with SendUserFile in the same turn so he has the video as proof. Each deleted clip carries `brief` (matched from its spoken lines via brief_index.json): put the brief title, Video ID and editor in the alert; if `sure` is false say "probably" and list `also`. Also put the start_image link (still alive after a delete) and the clip name (e.g. "Clip 28" from the prompt) in the Slack alert. End: "Who was logged in at that minute: higgsfield.ai/me/settings/sessions".
    Never post passwords or tokens.
+   PICTURE FIRST (Hemant's rule): whenever you tell Hemant about deleted items (alert or not, if he asks),
+   run `node sheet.js $S/out.json shots/deleted-<YYYY-MM-DD-HHMM>.png` and send that PNG with SendUserFile
+   before or with the text. One picture of all the deleted items with time, model, editor and prompt;
+   links only as a backup. In Slack add the saved_copy/link list under the alert as before.
 6. If Higgsfield tools fail with an auth error, post once per day in #blissta-ops that the connector needs reconnecting.
 
 The brief index (brief_index.json) maps every #creative-accountability handoff to its editor and script lines. Refresh it weekly from the Donnaa handoffs in C0C50D81ZUY.
