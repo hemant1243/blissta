@@ -6,6 +6,8 @@
 
    @Donnaa launch
    adset: 1234567890
+   image: https://...   (optional, repeatable: a direct image/video link or a Google Drive
+                         file link shared "anyone with the link", instead of attaching)
    link: https://blissta.co/corvael
    copy: Most people over 55 have never checked this.
    headline: The 28-Day Artery Reset
@@ -22,15 +24,19 @@ const MAX_BYTES = 200 * 1024 * 1024;
 
 const isLaunch = (text) => /^\s*launch\b/i.test(text || '');
 
+/* Slack strips angle brackets round URLs and sometimes appends |label. */
+const cleanUrl = (u) => (u || '').replace(/^</, '').replace(/>$/, '').split('|')[0];
+
 /* Pull `key: value` lines out of the message. Values may run to end of line. */
 function parse(text) {
   const out = {};
   for (const line of (text || '').split('\n')) {
-    const m = line.match(/^\s*(adset|adset_id|link|url|copy|message|primary|headline|title|description|desc|cta|name)\s*:\s*(.+?)\s*$/i);
+    const m = line.match(/^\s*(adset|adset_id|link|url|copy|message|primary|headline|title|description|desc|cta|name|image|video|file|media)\s*:\s*(.+?)\s*$/i);
     if (!m) continue;
     const k = m[1].toLowerCase();
     const v = m[2].trim();
-    if (k === 'adset' || k === 'adset_id') out.adsetId = v;
+    if (k === 'image' || k === 'video' || k === 'file' || k === 'media') (out.media = out.media || []).push({ url: cleanUrl(v), kind: k === 'video' ? 'video' : null });
+    else if (k === 'adset' || k === 'adset_id') out.adsetId = v;
     else if (k === 'link' || k === 'url') out.link = v;
     else if (k === 'copy' || k === 'message' || k === 'primary') out.message = v;
     else if (k === 'headline' || k === 'title') out.headline = v;
@@ -41,8 +47,6 @@ function parse(text) {
   return out;
 }
 
-/* Slack strips angle brackets round URLs and sometimes appends |label. */
-const cleanUrl = (u) => (u || '').replace(/^</, '').replace(/>$/, '').split('|')[0];
 
 function validate(spec, files) {
   const problems = [];
@@ -52,12 +56,33 @@ function validate(spec, files) {
   else if (!/^https?:\/\//i.test(spec.link)) problems.push('`link:` must start with http:// or https://');
   if (!spec.message) problems.push('`copy:` is missing. That is the primary text.');
   if (spec.cta && !CTAS.has(spec.cta)) problems.push('`cta:` ' + spec.cta + ' is not one Meta accepts. Try ' + [...CTAS].slice(0, 4).join(', ') + '.');
-  if (!files.length) problems.push('No files attached. Drag the statics or videos onto the message.');
-  if (files.length > MAX_FILES) problems.push('That is ' + files.length + ' files. Cap is ' + MAX_FILES + ' per launch.');
+  (spec.media || []).forEach((m) => { if (!/^https:\/\//i.test(m.url)) problems.push('`image:` must be an https link, got `' + m.url + '`.'); });
+  const count = files.length + (spec.media || []).length;
+  if (!count) problems.push('No files attached. Drag the statics or videos onto the message, or add `image:` links.');
+  if (count > MAX_FILES) problems.push('That is ' + count + ' files. Cap is ' + MAX_FILES + ' per launch.');
   return problems;
 }
 
 const kindOf = (f) => (/(^video\/)|(\.(mp4|mov|m4v)$)/i.test(f.mimetype + ' ' + f.name) ? 'video' : 'image');
+
+/* A Drive "anyone with the link" file link becomes its direct download link. */
+function directUrl(u) {
+  const m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{20,})/);
+  return m ? 'https://drive.google.com/uc?export=download&id=' + m[1] : u;
+}
+
+async function fetchLink(m) {
+  const res = await fetch(directUrl(m.url), { redirect: 'follow' });
+  if (!res.ok) throw new Error('the link answered HTTP ' + res.status);
+  const type = res.headers.get('content-type') || '';
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > MAX_BYTES) throw new Error(Math.round(buf.length / 1048576) + 'MB, over the ' + Math.round(MAX_BYTES / 1048576) + 'MB cap');
+  if (/text\/html/i.test(type) || buf.slice(0, 15).toString().toLowerCase().includes('<!doctype html')) throw new Error('the link gave a web page, not a file. Share it as "anyone with the link" or use a direct file link.');
+  const base = decodeURIComponent((new URL(m.url).pathname.split('/').pop() || 'file')).replace(/[^\w.-]+/g, '_');
+  const kind = m.kind || (/^video\//.test(type) || /\.(mp4|mov|m4v)$/i.test(base) ? 'video' : 'image');
+  const ext = /\.\w{3,4}$/.test(base) ? '' : kind === 'video' ? '.mp4' : /png/.test(type) ? '.png' : '.jpg';
+  return { buffer: buf, filename: base + ext, kind };
+}
 
 async function download(file, botToken) {
   const res = await fetch(file.url_private_download || file.url_private, { headers: { Authorization: 'Bearer ' + botToken } });
@@ -101,12 +126,21 @@ async function run({ text, files, botToken, say, thread_ts }) {
     return null;
   }
 
-  await say({ thread_ts, text: `Launching ${files.length} into ad set ${spec.adsetId} on ${acct.name}. Everything lands paused.` });
+  const total = files.length + (spec.media || []).length;
+  await say({ thread_ts, text: `Launching ${total} into ad set ${spec.adsetId} on ${acct.name}. Everything lands paused.` });
 
   const items = [];
   for (const f of files) {
     try { items.push({ name: (spec.name ? spec.name + ' | ' : '') + f.name.replace(/\.[^.]+$/, ''), buffer: await download(f, botToken), filename: f.name, kind: kindOf(f) }); }
     catch (e) { await say({ thread_ts, text: 'Skipping ' + f.name + ': ' + e.message }); }
+  }
+  let n = 0;
+  for (const m of spec.media || []) {
+    n++;
+    try {
+      const got = await fetchLink(m);
+      items.push({ name: (spec.name ? spec.name + ' | ' : '') + got.filename.replace(/\.[^.]+$/, ''), buffer: got.buffer, filename: got.filename, kind: got.kind });
+    } catch (e) { await say({ thread_ts, text: 'Skipping link ' + n + ': ' + e.message }); }
   }
   if (!items.length) { await say({ thread_ts, text: 'Nothing downloadable. Stopped.' }); return null; }
 
@@ -125,4 +159,4 @@ async function run({ text, files, botToken, say, thread_ts }) {
   return results;
 }
 
-module.exports = { isLaunch, parse, validate, cleanUrl, kindOf, run, CTAS };
+module.exports = { isLaunch, parse, validate, cleanUrl, kindOf, run, CTAS, directUrl };
