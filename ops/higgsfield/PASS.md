@@ -7,10 +7,13 @@ S = /tmp/hf-watch   (this chat's working folder; if $S/state.json is missing, co
 J = this chat's own transcript: `ls -t ~/.claude/projects/*/*.jsonl | head -1`
 Every ~hour, copy $S/state.json back to ops/higgsfield/state/state.json, commit and push to claude/yo-m920ap (so a restart loses nothing).
 
-1. Call mcp__HIGGSFIELD__transactions size 40, then mcp__HIGGSFIELD__show_generations only_completed=false size 60
-   (the result is saved to a tool-results file; never read it into the chat).
+1. Call mcp__HIGGSFIELD__transactions size 40, then mcp__HIGGSFIELD__show_generations only_completed=false
+   TWICE: type=image size=100 and type=video size=60 (results are saved to tool-results files; never read them
+   into the chat). Then `node merge.js $S/gens.json <image file> <video file>` and use $S/gens.json below.
+   Never use the unfiltered feed: on 14 Oct it silently left out 22 GPT Image images, and the watch wrongly
+   reported them as deleted.
 2. `node lastresult.js $J mcp__HIGGSFIELD__transactions > $S/tx.json`
-3. `node watch5.js $S/state.json $S/tx.json <generations file>` (mkdir -p $S first).
+3. `node watch5.js $S/state.json $S/tx.json $S/gens.json` (mkdir -p $S first).
 4. Off-brand check on new_prompts. Ours: Corbel/Corvael nattokinase, Methylene Blue / Ultra Blue gummies,
    PainBloc PEA, Aeon copper peptide, Lucenta glutathione, and generic health/anatomy/older-adult/doctor/
    kitchen/UGC scenes for them. Off-brand: other brands (e.g. NORSAN), beauty/fashion/real estate/crypto/

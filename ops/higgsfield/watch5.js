@@ -41,6 +41,7 @@ for (const g of gens) {
   const old = st.seen[g.id];
   if (!old) fresh.push(g);
   st.seen[g.id] = { ...old, ...g, url: g.url || old?.url || null, saved: g.saved || old?.saved || null };
+  delete st.seen[g.id].gone; // back in the feed = not deleted
 }
 // 3. spends with no clip (made and deleted before we ever saw it), older than 10 min, not yet reported
 const tx = load(txFile).map(t => ({ ...t, ts: Date.parse(t.created_at), fam: fam(t.display_name) }));
