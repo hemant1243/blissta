@@ -60,6 +60,7 @@ If something is missing, Claude Code makes a sensible pick and says what it pick
 - **Use the product's locked villain.** MB is electron leak, PEA is nerve starvation, Corvael is fibrin decline. Brand frame: "your body stopped making this".
 - Hooks are different people walking in, not new wordings of one line. Every hook needs a specific: a number, a scene or a time.
 - His words, small physical wins ("pick my granddaughter up"). Never transform, unlock, breakthrough, game changing or changed my life.
+- **Tag every ad:** AVATAR · OPENING EMOTION · BELIEF SHIFT · CLOSING EMOTION (see `brand/emotion-belief-map.md`). Put the belief code in the file name, for example `CORVAEL_SIXWEEKS_BA_H1_4x5`, so results can be read by belief.
 - **Self-check table for every ad:** claim, source, safe? (see section 5).
 
 **GATE 1:** show Hemant the copy, short. He says ok or changes.
