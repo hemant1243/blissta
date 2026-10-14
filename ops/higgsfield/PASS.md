@@ -1,10 +1,11 @@
-# One Higgsfield watch pass (runs every 5 min in Hemant's main session)
+# One Higgsfield watch pass (runs every 5 min in the "Higgsfield sessions watcher" chat)
 
 Quiet unless there is an alert. If nothing is found, end the turn with no text to Hemant.
 Read-only on Higgsfield: never generate, buy, delete or change anything.
 
-S = /tmp/claude-0/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf0619/scratchpad/hf
-J = /root/.claude/projects/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf0619.jsonl
+S = /tmp/hf-watch   (this chat's working folder; if $S/state.json is missing, copy state/state.json from this folder into it first)
+J = this chat's own transcript: `ls -t ~/.claude/projects/*/*.jsonl | head -1`
+Every ~hour, copy $S/state.json back to ops/higgsfield/state/state.json, commit and push to claude/yo-m920ap (so a restart loses nothing).
 
 1. Call mcp__HIGGSFIELD__transactions size 40, then mcp__HIGGSFIELD__show_generations only_completed=false size 60
    (the result is saved to a tool-results file; never read it into the chat).
