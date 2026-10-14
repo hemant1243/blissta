@@ -26,6 +26,13 @@ J = /root/.claude/projects/-home-user-blissta/b576a738-a8ed-59dc-9bcc-6c1b52cf06
    run `node sheet.js $S/out.json shots/deleted-<YYYY-MM-DD-HHMM>.png` and send that PNG with SendUserFile
    before or with the text. One picture of all the deleted items with time, model, editor and prompt;
    links only as a backup. In Slack add the saved_copy/link list under the alert as before.
+   SLACK PICTURE: the Slack tool cannot attach images, so the picture goes on the proof page
+   https://claude.ai/artifact/8LiNgp2f5MaCucFnuwnFZk (source ops/higgsfield/proof/). For every Slack alert about
+   deletes: copy the PNG into proof/ as deleted-<YYYY-MM-DD-HHMM>.png, add an entry to proof/manifest.json
+   (when ISO UTC, label in Eastern time, count, credits, note naming brief/editor or "editor unknown", file),
+   republish with Artifact (file_path ops/higgsfield/proof/index.html, root /home/user/blissta, files {manifest.json,
+   the new png}), and put "📸 Picture: https://claude.ai/artifact/8LiNgp2f5MaCucFnuwnFZk" as the first line under the
+   alert title. Only for real alerts (thresholds above); small deletes stay out of Slack.
 6. If Higgsfield tools fail with an auth error, post once per day in #blissta-ops that the connector needs reconnecting.
 
 The brief index (brief_index.json) maps every #creative-accountability handoff to its editor and script lines. Refresh it weekly from the Donnaa handoffs in C0C50D81ZUY.

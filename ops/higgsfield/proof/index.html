@@ -1,0 +1,54 @@
+<title>Higgsfield Delete Proof</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column log, newest proof sheet first, picture full width under a one-line caption. */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --fg: #15181d; --muted: #5d6573; --line: #dfe3ea; --alert: #c2410c;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111418; --panel: #191d23; --fg: #e9edf2; --muted: #9aa3b2; --line: #2a3039; --alert: #fb923c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111418; --panel: #191d23; --fg: #e9edf2; --muted: #9aa3b2; --line: #2a3039; --alert: #fb923c; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; }
+.wrap { max-width: 1000px; margin: 0 auto; display: grid; gap: 20px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 28px; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 4px 0 0; max-width: 65ch; }
+.entry { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.cap { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.cap b { font-family: var(--display); font-size: 17px; }
+.cap .n { color: var(--alert); font-family: var(--mono); font-size: 13px; letter-spacing: .02em; }
+.cap .note { color: var(--muted); font-size: 13px; min-width: 0; }
+.entry img { display: block; width: 100%; height: auto; }
+.empty { color: var(--muted); }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@700&display=swap">
+<div class="wrap">
+  <header>
+    <h1>Higgsfield delete proof</h1>
+    <p class="lede">Every time the watch sees clips or images deleted, a picture of exactly what was deleted lands here, newest first. Times are US Eastern.</p>
+  </header>
+  <div id="list"><p class="empty">Loading pictures…</p></div>
+</div>
+<script>
+fetch('manifest.json').then((r) => r.json()).then((m) => {
+  const list = document.getElementById('list');
+  const rows = (m.entries || []).slice().sort((a, b) => (a.when < b.when ? 1 : -1));
+  if (!rows.length) { list.innerHTML = '<p class="empty">No deletes recorded yet.</p>'; return; }
+  list.innerHTML = '';
+  list.style.display = 'grid'; list.style.gap = '20px';
+  for (const e of rows) {
+    const el = document.createElement('article'); el.className = 'entry';
+    const cap = document.createElement('div'); cap.className = 'cap';
+    const t = document.createElement('b'); t.textContent = e.label;
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = e.count + (e.count === 1 ? ' item' : ' items') + (e.credits ? ' · ' + e.credits + ' credits' : '');
+    const note = document.createElement('span'); note.className = 'note'; note.textContent = e.note || '';
+    cap.append(t, n, note);
+    const img = document.createElement('img'); img.src = e.file; img.alt = 'Deleted items: ' + e.label; img.loading = 'lazy';
+    el.append(cap, img); list.append(el);
+  }
+}).catch(() => { document.getElementById('list').innerHTML = '<p class="empty">Could not load the list of pictures.</p>'; });
+</script>
