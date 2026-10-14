@@ -33,7 +33,11 @@ for (const g of gens) {
 // 1. clips we saw before that are gone now = deleted (with proof)
 const deleted = [];
 for (const [id, g] of Object.entries(st.seen)) {
-  if (g.ts >= oldest && !ids.has(id) && !g.gone) { g.gone = now; deleted.push(g); }
+  if (g.ts >= oldest && !ids.has(id) && !g.gone) {
+    g.gone = now;
+    // a job that never finished (queued/in progress) and vanished was failed + refunded, not deleted
+    if (g.status === 'completed' || g.url) deleted.push(g);
+  }
 }
 // 2. remember new clips; list the new prompts for an off-brand check
 const fresh = [];
