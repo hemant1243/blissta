@@ -27,23 +27,37 @@ const isLaunch = (text) => /^\s*launch\b/i.test(text || '');
 /* Slack strips angle brackets round URLs and sometimes appends |label. */
 const cleanUrl = (u) => (u || '').replace(/^</, '').replace(/>$/, '').split('|')[0];
 
-/* Pull `key: value` lines out of the message. Values may run to end of line. */
+/* Slack sends &, < and > as entities; ad copy needs the real characters. */
+const unescape = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
+/*
+ Pull `key: value` lines out of the message. Values run to end of line, except
+ copy and description: native ads carry paragraphs, so every following line that
+ is not another key belongs to them (blank lines kept as paragraph breaks).
+*/
 function parse(text) {
   const out = {};
+  let open = null;
   for (const line of (text || '').split('\n')) {
-    const m = line.match(/^\s*(adset|adset_id|link|url|copy|message|primary|headline|title|description|desc|cta|name|image|video|file|media)\s*:\s*(.+?)\s*$/i);
-    if (!m) continue;
+    const m = line.match(/^\s*(adset|adset_id|link|url|copy|message|primary|headline|title|description|desc|cta|name|image|video|file|media)\s*:\s*(.*?)\s*$/i);
+    if (!m) {
+      if (open) out[open] += '\n' + unescape(line.trimEnd());
+      continue;
+    }
+    open = null;
     const k = m[1].toLowerCase();
     const v = m[2].trim();
+    if (k === 'copy' || k === 'message' || k === 'primary') { out.message = unescape(v); open = 'message'; continue; }
+    if (k === 'description' || k === 'desc') { out.description = unescape(v); open = 'description'; continue; }
+    if (!v) continue;
     if (k === 'image' || k === 'video' || k === 'file' || k === 'media') (out.media = out.media || []).push({ url: cleanUrl(v), kind: k === 'video' ? 'video' : null });
     else if (k === 'adset' || k === 'adset_id') out.adsetId = v;
     else if (k === 'link' || k === 'url') out.link = v;
-    else if (k === 'copy' || k === 'message' || k === 'primary') out.message = v;
-    else if (k === 'headline' || k === 'title') out.headline = v;
-    else if (k === 'description' || k === 'desc') out.description = v;
+    else if (k === 'headline' || k === 'title') out.headline = unescape(v);
     else if (k === 'cta') out.cta = v.toUpperCase().replace(/\s+/g, '_');
     else if (k === 'name') out.name = v;
   }
+  for (const k of ['message', 'description']) if (out[k] !== undefined) out[k] = out[k].trim() || undefined;
   return out;
 }
 
