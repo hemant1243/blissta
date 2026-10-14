@@ -1,4 +1,4 @@
-# One Higgsfield watch pass (runs every 5 min in the "Higgsfield sessions watcher" chat)
+# One Higgsfield watch pass (runs every 2 min in the "Higgsfield sessions watcher" chat)
 
 Quiet unless there is an alert. If nothing is found, end the turn with no text to Hemant.
 Read-only on Higgsfield: never generate, buy, delete or change anything.
