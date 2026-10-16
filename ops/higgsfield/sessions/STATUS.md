@@ -40,3 +40,10 @@ Lockout policy (Clerk): 20 failed attempts → 60 min lock. The 429s above are r
 - After a successful login, sessions are probably read from Clerk's
   `GET /v1/me/sessions/active`. To be confirmed.
 - Snapshot fields: device, browser, IP, city/country, last active (UTC).
+
+## 2026-10-16 decision (Hemant)
+
+- One more password login from the cloud runner on 2026-10-16 was also rate-limited (429). Stopped there.
+- **Do not retry the login from the cloud.** Hemant sends a screenshot of higgsfield.ai/me/settings/sessions
+  when a delete alert fires; match devices with ../devices.json and the alert minute.
+- Permanent fix in progress: separate Higgsfield logins per person.
