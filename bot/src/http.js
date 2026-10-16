@@ -26,7 +26,7 @@ function start(client) {
   const port = Number(process.env.PORT || 8080);
   const srv = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
-    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) return send(res, 200, { ok: true, bot: 'donnaa' });
+    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) return send(res, 200, { ok: true, bot: 'donnaa', commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || null, branch: process.env.RAILWAY_GIT_BRANCH || null });
     if (url.pathname === '/editors' || url.pathname.startsWith('/editors/')) return editors.handle(req, res, client);
     if (url.pathname !== '/tracker') return send(res, 404, { error: 'not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
