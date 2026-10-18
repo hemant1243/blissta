@@ -1,1 +1,1 @@
-{"permissions":{"allow":["Artifact"]}}
+{"permissions":{"allow":["Artifact","Bash(NODE_USE_ENV_PROXY=1 node sweep.js --apply:*)","Bash(node sweep.js --apply:*)"]}}
