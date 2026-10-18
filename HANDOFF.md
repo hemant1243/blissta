@@ -1,4 +1,4 @@
-# START HERE: handoff for any new Claude chat (updated Oct 17 2026)
+# START HERE: handoff for any new Claude chat (updated Oct 18 2026)
 
 Read this first, then the files it points to. Repo hemant1243/blissta, branch claude/yo-m920ap.
 
@@ -53,6 +53,14 @@ Hemant (DONAAA), owner of Blissta, a US supplement brand on Meta ads. The produc
 8. **Customer portal:** "Email & Order Id" login is saved in Checkout Champ but not published. Hemant said not to worry about it.
 9. **Edjill warning message:** drafted, not sent.
 10. **Railway CLI** is not logged in here, so Meta spend is missing from the P&L and editor scorecard.
+
+## Done Oct 18
+- **Briefs pipeline:** Donnaa runs the creative tracker in Slack (`bot/src/pipeline.js`): brief, approval by Hemant or Bruce, editor, cut, strategist review, then Jenn. Nudges after 24h. "pipeline off" stops it.
+- **Weekly rebill report:** `retention/rebill_report.js`, posted to #blissta-ops every Monday 9am Bangkok by a scheduled task bound to the Oct 18 chat.
+- **Subscription sweep:** 7,382 subs set to 1 bottle 28d, 2-3 bottles 56d, 4+ bottles 84d, price never above first order per bottle, charge dates never earlier (`retention/sweep.js`, log in `retention/out/`, git-ignored). Bottle count comes from the original order, not the plan name (plan names are price tiers).
+- **Revenue forecast:** `node retention/forecast.js 2027-01`.
+- **Day 7 creative sheet:** code is in `bot/src/day7.js` and `ops/day7/`. The sheet and its Apps Script and Railway variables are not set up yet. AppLovin is not connected. Slack posts stay off until Hemant says go.
+- **Klaviyo:** the pre-billing reminder already exists. Don't build anything in Klaviyo.
 
 ## Saving Claude usage
 Long chats re-read their whole history on every message. Start a fresh chat for a new topic and point it at this file. Use big multi-agent research only when he asks for it.
