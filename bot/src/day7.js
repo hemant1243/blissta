@@ -2,13 +2,17 @@
 /*
  Day 7 creative learning sheet (07_ITERATION_PLAYBOOK Part 0.5).
 
-   Daily 9am Bangkok   every ad launched 7 days ago on Meta gets a row in the sheet:
-                       creative, product, launch date and its first 7 days of spend,
-                       hook %, hold, CTR, CPA. Under $100 spend the verdict is "no read".
-                       The strategist fills angle, avatar, format, type, hypothesis,
-                       verdict and why.
-   Monday 9am Bangkok  rows from the last 7 days with no verdict or why, owners tagged.
-   Friday 5pm Bangkok  the week's verdict counts with creative names.
+   Daily 9am Bangkok   ads launched 7 days ago on Meta are labelled by their first 7 days
+                       (only ads with $100+ spend count):
+                         ROAS 2.0+      Breakthrough
+                         ROAS 1.8-2.0   Scale winner
+                         ROAS 1.4-1.8   Winner         (1.4 is break-even)
+                         ROAS 1.0-1.4   Keep running
+                         under 1.0      Check if it has sales and CTR 2%+, else kill
+                       Killed ads and ads under $100 stay out of the sheet. The team writes
+                       "why it won" and "next iteration" on the three winner labels.
+   Monday 9am Bangkok  winners from the last 7 days with no why or next iteration.
+   Friday 5pm Bangkok  the week's labels with creative names.
 
  The sheet is written through a small Apps Script web app bound to it
  (ops/day7/apps-script.gs), the same way the tracker bridge works.
@@ -25,7 +29,10 @@ const meta = require('./meta');
 
 const DAY = 864e5;
 const BKK = 7 * 3600e3; /* Bangkok is UTC+7, no daylight saving */
-const NO_READ_UNDER = 100;
+const MIN_SPEND = 100;
+const CHECK_CTR = 0.02;
+const LADDER = [[2, '🚀 Breakthrough'], [1.8, '💰 Scale winner'], [1.4, '✅ Winner'], [1, '⏳ Keep running']];
+const WINNERS = LADDER.slice(0, 3).map(([, l]) => l);
 const PRODUCTS = [
   [/corbel|corvael|corvel|natto/i, 'Corbel'],
   [/painbloc|pea\b/i, 'PainBloc'],
@@ -44,6 +51,14 @@ async function accounts() {
   if (a) return [a.startsWith('act_') ? a : 'act_' + a];
   return (await meta.adAccounts()).map((x) => x.id);
 }
+/* The label for a creative's first 7 days, or null when it stays out of the sheet. */
+function label({ spend, roas, purchases, ctr }) {
+  if (spend < MIN_SPEND) return null;
+  const step = LADDER.find(([min]) => roas >= min);
+  if (step) return step[1];
+  return purchases > 0 && ctr >= CHECK_CTR ? '⚠️ Check' : null;
+}
+const PURCHASE = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
 const act = (list, types) => { for (const t of types) { const a = (list || []).find((x) => x.action_type === t); if (a) return Number(a.value) || 0; } return 0; };
 
 async function pages(path, query) {
@@ -69,19 +84,22 @@ async function metaRows(days) {
   }
   if (!list.length) throw new Error('no Meta ad accounts visible to the token');
   if (failed.length === list.length) throw lastError;
-  const rows = [...byName.values()].map((v) => ({
-    creative: v.creative,
-    product: v.product,
-    launch: v.launch,
-    spend: Math.round(v.spend * 100) / 100,
-    hook: v.impressions ? v.views3s / v.impressions : '',
-    hold: v.views3s ? v.thruplays / v.views3s : '',
-    ctr: v.impressions ? v.clicks / v.impressions : '',
-    cpa: v.purchases ? Math.round((v.spend / v.purchases) * 100) / 100 : '',
-    verdict: v.spend < NO_READ_UNDER ? 'no read' : '',
-    source: 'Meta',
-  }));
-  return { rows, failed };
+  const all = [...byName.values()].map((v) => {
+    const r = {
+      creative: v.creative,
+      product: v.product,
+      launch: v.launch,
+      day7: addDays(v.launch, 7),
+      spend: Math.round(v.spend * 100) / 100,
+      roas: v.spend ? Math.round((v.value / v.spend) * 100) / 100 : 0,
+      cpa: v.purchases ? Math.round((v.spend / v.purchases) * 100) / 100 : '',
+      ctr: v.impressions ? v.clicks / v.impressions : 0,
+      purchases: v.purchases,
+    };
+    r.label = label(r);
+    return r;
+  });
+  return { rows: all.filter((r) => r.label), total: all.length, failed };
 }
 
 async function accountRows(acct, days, byName) {
@@ -100,20 +118,19 @@ async function accountRows(acct, days, byName) {
     const group = launched.filter((a) => a.launch === day);
     const ins = await pages('/' + acct + '/insights', {
       level: 'ad',
-      fields: 'ad_id,ad_name,campaign_name,spend,impressions,inline_link_clicks,actions,video_thruplay_watched_actions',
+      fields: 'ad_id,ad_name,campaign_name,spend,impressions,inline_link_clicks,actions,action_values',
       time_range: { since: day, until: addDays(day, 6) },
       filtering: [{ field: 'ad.id', operator: 'IN', value: group.map((a) => a.id) }],
     });
     for (const x of ins) {
       const k = x.ad_name;
-      const v = byName.get(k) || { creative: k, product: product(x.campaign_name), launch: day, spend: 0, impressions: 0, clicks: 0, views3s: 0, thruplays: 0, purchases: 0 };
+      const v = byName.get(k) || { creative: k, product: product(x.campaign_name), launch: day, spend: 0, impressions: 0, clicks: 0, purchases: 0, value: 0 };
       if (day < v.launch) v.launch = day;
       v.spend += Number(x.spend) || 0;
       v.impressions += Number(x.impressions) || 0;
       v.clicks += Number(x.inline_link_clicks) || 0;
-      v.views3s += act(x.actions, ['video_view']);
-      v.thruplays += act(x.video_thruplay_watched_actions, ['video_view']);
-      v.purchases += act(x.actions, ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase']);
+      v.purchases += act(x.actions, PURCHASE);
+      v.value += act(x.action_values, PURCHASE);
       byName.set(k, v);
     }
   }
@@ -128,46 +145,42 @@ async function sheet(body) {
   return j;
 }
 
-/* Launch days 7 to 10 days back, so a missed morning is picked up the next day. Rows already there are left alone. */
-async function pull(now = Date.now()) {
+/* Launch days 7 to 10 days back, so a missed morning is picked up the next day. Rows already there are left alone.
+   One pull at a time: two overlapping pulls both see the sheet before either writes, and add the same rows twice. */
+let pulling = null;
+function pull(now = Date.now()) {
+  if (!pulling) pulling = doPull(now).finally(() => { pulling = null; });
+  return pulling;
+}
+
+async function doPull(now) {
   const today = bkkDate(now);
   const days = [addDays(today, -10), addDays(today, -9), addDays(today, -8), addDays(today, -7)];
-  const { rows, failed } = await metaRows(days);
+  const { rows, total, failed } = await metaRows(days);
   const r = await sheet({ action: 'add', rows });
-  return { launchDays: days, found: rows.length, added: r.added, skipped: r.skipped, failed };
+  const counts = {};
+  for (const x of rows) counts[x.label] = (counts[x.label] || 0) + 1;
+  return { launchDays: days, total, kept: rows.length, counts, added: r.added, skipped: r.skipped, failed };
 }
 
 /* ---------- Slack posts ---------- */
 
 const link = () => (process.env.DAY7_SHEET_LINK ? `<${process.env.DAY7_SHEET_LINK}|Day 7 sheet>` : 'Day 7 sheet');
 
-async function ownerTag(client, name, cache) {
-  if (!name) return '';
-  if (/^<@U/.test(name)) return name;
-  if (!cache.users) cache.users = (await client.users.list({ limit: 1000 })).members || [];
-  const n = name.trim().toLowerCase();
-  const u = cache.users.find((m) => !m.deleted && [m.name, m.real_name, m.profile && m.profile.display_name, m.profile && m.profile.real_name].some((x) => (x || '').toLowerCase() === n));
-  return u ? `<@${u.id}>` : name;
-}
-
-async function mondayText(client, now = Date.now()) {
+async function mondayText(now = Date.now()) {
   const since = addDays(bkkDate(now), -7);
   const { rows } = await sheet({ action: 'list' });
-  const open = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now) && (!r.verdict || !r.why));
+  const open = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now) && WINNERS.includes(r.label) && (!r.why || !r.next));
   if (!open.length) return null;
-  const cache = {};
-  const lines = [];
-  for (const r of open) lines.push(`• ${r.creative} ${(await ownerTag(client, r.owner, cache)) || '(no owner)'}`);
-  return `${link()}: ${open.length} rows need your verdict.\n${lines.join('\n')}`;
+  return `${link()}: ${open.length} winners need "why it won" and "next iteration".\n${open.map((r) => `• ${r.label} ${r.creative} (ROAS ${r.roas})`).join('\n')}`;
 }
 
 async function fridayText(now = Date.now()) {
   const since = addDays(bkkDate(now), -6);
   const { rows } = await sheet({ action: 'list' });
-  const week = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now) && r.verdict);
-  const order = ['winner', 'iterate', 'fix', 'kill'];
-  const parts = order.map((v) => { const names = week.filter((r) => r.verdict === v).map((r) => r.creative); return `*${v}* ${names.length}${names.length ? ': ' + names.join(', ') : ''}`; });
-  return `Day 7 verdicts this week (${link()}):\n${parts.join('\n')}`;
+  const week = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now));
+  const parts = [...LADDER.map(([, l]) => l), '⚠️ Check'].map((l) => { const names = week.filter((r) => r.label === l).map((r) => r.creative); return `${l} ${names.length}${names.length ? ': ' + names.join(', ') : ''}`; });
+  return `Day 7 this week (${link()}):\n${parts.join('\n')}`;
 }
 
 /* ---------- schedule ---------- */
@@ -181,7 +194,7 @@ async function tick(client, now = Date.now()) {
   const posting = process.env.DAY7_SLACK === '1' && process.env.DAY7_CHANNEL;
   if (posting && dow === 1 && h === 9 && last.monday !== today) {
     last.monday = today;
-    const text = await mondayText(client, now);
+    const text = await mondayText(now);
     if (text) await client.chat.postMessage({ channel: process.env.DAY7_CHANNEL, text, unfurl_links: false });
     did.push({ monday: !!text });
   }
@@ -199,9 +212,10 @@ async function command(text, client) {
   if (!m) return null;
   if (m[1].toLowerCase() === 'run') {
     const r = await pull();
-    return `Day 7 pull: ${r.found} creatives launched ${r.launchDays[0]} to ${r.launchDays[3]}, ${r.added} added, ${r.skipped} already in the sheet.${r.failed.length ? ` Could not read ${r.failed.join(', ')}.` : ''}`;
+    const counts = Object.entries(r.counts).map(([l, n]) => `${l} ${n}`).join(', ') || 'none';
+    return `Day 7 pull: ${r.total} creatives launched ${r.launchDays[0]} to ${r.launchDays[3]}, ${r.kept} made the sheet (${counts}), ${r.added} new.${r.failed.length ? ` Could not read ${r.failed.join(', ')}.` : ''}`;
   }
-  return `*Monday post:*\n${(await mondayText(client)) || '(nothing open)'}\n\n*Friday post:*\n${await fridayText()}`;
+  return `*Monday post:*\n${(await mondayText()) || '(nothing open)'}\n\n*Friday post:*\n${await fridayText()}`;
 }
 
-module.exports = { tick, command, pull, _t: { product, bkkDate, addDays } };
+module.exports = { tick, command, pull, _t: { product, bkkDate, addDays, label } };
