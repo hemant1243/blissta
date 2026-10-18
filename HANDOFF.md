@@ -60,6 +60,8 @@ Hemant (DONAAA), owner of Blissta, a US supplement brand on Meta ads. The produc
 - **Subscription sweep:** 7,382 subs set to 1 bottle 28d, 2-3 bottles 56d, 4+ bottles 84d, price never above first order per bottle, charge dates never earlier (`retention/sweep.js`, log in `retention/out/`, git-ignored). Bottle count comes from the original order, not the plan name (plan names are price tiers).
 - **Revenue forecast:** `node retention/forecast.js 2027-01`.
 - **Day 7 creative sheet:** code is in `bot/src/day7.js` and `ops/day7/`. The sheet and its Apps Script and Railway variables are not set up yet. AppLovin is not connected. Slack posts stay off until Hemant says go.
+- **Acquisition cap (Hemant, Oct 18): $85 per new customer.** The real Meta cost was about $90 (Sep 18 to Oct 17: $249k spend for 2,769 new CC customers). COGS plus shipping is 15% of price. Raise the cap only if the Nov 22 retention check improves.
+- **Refunds:** under 5% of all charges this month (4.3%). Checkout now offers one-time and subscribe.
 - **Klaviyo:** the pre-billing reminder already exists. Don't build anything in Klaviyo.
 
 ## Saving Claude usage
