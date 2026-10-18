@@ -48,7 +48,7 @@ Hemant (DONAAA), owner of Blissta, a US supplement brand on Meta ads. The produc
    - MB gummies: 14mg vs 5mg.
    - PainBloc: 1,200mg (the Project says 1,200).
    - Guarantee: 30-day money-back is live.
-6. **GMP certificate** of the only supplier (Guangdong Come Health) expires Oct 31.
+6. **GMP certificate:** done. The supplier is a cGMP-certified facility (Hemant confirmed Oct 18). Don't raise it again.
 7. **Two passwords** were posted in plain text in #ai-staticsxmark (Oct 6 and Oct 8). Rotate them.
 8. **Customer portal:** "Email & Order Id" login is saved in Checkout Champ but not published. Hemant said not to worry about it.
 9. **Edjill warning message:** drafted, not sent.
