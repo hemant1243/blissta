@@ -3,13 +3,17 @@
 // Deploy > New deployment > Web app, execute as Me, access Anyone.
 // After pasting a new version: Deploy > Manage deployments > edit > Version: New version > Deploy.
 //
-//   {action:"add", rows:[...]}  adds a row per creative not already in the tab, best ROAS first
-//   {action:"list"}             returns every row
+//   {action:"add", rows:[...]}  adds each creative not already there to its tab (row.tab: winners | killed)
+//   {action:"list"}             returns every row of both tabs
 //
-// If the header row is not the one below, the tab is cleared and set up again.
+// A tab whose header row is not the one below is cleared and set up again.
 
-var TAB = 'Creatives';
-var HEADERS = ['Creative', 'Product', 'Launch date', 'Day 7 date', 'Spend', 'ROAS', 'CPA', 'CTR', 'Label', 'Why it won', 'Next iteration'];
+var TABS = {
+  winners: { name: 'Winners', old: 'Creatives', sortBy: 'ROAS',
+    headers: ['Creative', 'Ad', 'Product', 'Launch date', 'Day 7 date', 'Spend', 'ROAS', 'CPA', 'CTR', 'Label', 'Testing', 'Why it won', 'Next iteration'] },
+  killed: { name: 'Killed', sortBy: 'Spend',
+    headers: ['Creative', 'Ad', 'Product', 'Launch date', 'Day 7 date', 'Spend', 'ROAS', 'CPA', 'CTR', 'Label', 'Testing', 'What we learned'] },
+};
 var COLORS = [['Breakthrough', '#93c47d'], ['Scale winner', '#b6d7a8'], ['Winner', '#d9ead3'], ['Keep running', '#fff2cc'], ['Check', '#fce5cd']];
 
 function doPost(e) {
@@ -19,74 +23,98 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    var sh = setup(SpreadsheetApp.getActive().getSheetByName(TAB));
-    if (body.action === 'add') return out(add(sh, body.rows || []));
-    if (body.action === 'list') return out({ rows: list(sh) });
+    if (body.action === 'add') return out(add(body.rows || []));
+    if (body.action === 'list') return out({ rows: list('winners').concat(list('killed')) });
     return out({ error: 'unknown action' });
   } finally {
     lock.releaseLock();
   }
 }
 
-function setup(sh) {
-  var have = sh.getRange(1, 1, 1, HEADERS.length).getValues()[0].join('|');
-  if (have === HEADERS.join('|')) return sh;
+function tab(key) {
+  var t = TABS[key];
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName(t.name) || (t.old && ss.getSheetByName(t.old)) || ss.insertSheet(t.name);
+  if (sh.getName() !== t.name) sh.setName(t.name);
+  var n = t.headers.length;
+  if (sh.getRange(1, 1, 1, n).getValues()[0].join('|') === t.headers.join('|')) return sh;
   sh.clear();
   sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).clearDataValidations();
-  sh.setConditionalFormatRules([]);
-  sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold').setFontColor('#ffffff').setBackground('#1f3864');
+  sh.getRange(1, 1, 1, n).setValues([t.headers]).setFontWeight('bold').setFontColor('#ffffff').setBackground('#1f3864');
   sh.setFrozenRows(1);
   sh.setFrozenColumns(0);
-  var body = sh.getRange('A2:K5000');
-  var rules = COLORS.map(function (c) {
-    return SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($I2,"' + c[0] + '")').setBackground(c[1]).setRanges([sh.getRange('A2:I5000')]).build();
-  });
-  // A winner with no "why it won" or "next iteration" yet shows the empty cell in red.
-  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=AND(REGEXMATCH($I2,"Breakthrough|Scale winner|✅ Winner"),J2="")').setBackground('#f4cccc').setRanges([sh.getRange('J2:K5000')]).build());
+  var rows = sh.getMaxRows() - 1;
+  var rules = [];
+  if (key === 'winners') {
+    COLORS.forEach(function (c) {
+      rules.push(rule('=REGEXMATCH($J2,"' + c[0] + '")', c[1], sh.getRange(2, 1, rows, 10)));
+    });
+    // Empty cells the team owes show red: Testing on every row, why and next on the three winner labels.
+    rules.push(rule('=AND($A2<>"",K2="")', '#f4cccc', sh.getRange(2, 11, rows, 1)));
+    rules.push(rule('=AND(REGEXMATCH($J2,"Breakthrough|Scale winner|✅ Winner"),L2="")', '#f4cccc', sh.getRange(2, 12, rows, 2)));
+  } else {
+    rules.push(rule('=AND($A2<>"",K2="")', '#f4cccc', sh.getRange(2, 11, rows, 2)));
+  }
   sh.setConditionalFormatRules(rules);
-  body.setVerticalAlignment('top');
-  sh.getRange('J2:K5000').setWrap(true);
+  sh.getRange(2, 1, rows, n).setVerticalAlignment('top');
+  sh.getRange(2, 11, rows, n - 10).setWrap(true);
   sh.setColumnWidth(1, 320);
-  sh.setColumnWidths(10, 2, 300);
+  sh.setColumnWidths(11, n - 10, 280);
   return sh;
 }
 
-function add(sh, rows) {
-  var have = {};
-  var last = sh.getLastRow();
-  if (last > 1) sh.getRange(2, 1, last - 1, 1).getValues().forEach(function (r) { have[String(r[0]).trim()] = true; });
-  var fresh = [];
-  rows.forEach(function (r) {
-    var name = String(r.creative || '').trim();
-    if (!name || have[name]) return;
-    have[name] = true;
-    fresh.push([name, r.product, day(r.launch), day(r.day7), r.spend, r.roas, r.cpa, r.ctr, r.label, '', '']);
-  });
-  if (fresh.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, fresh.length, HEADERS.length).setValues(fresh);
-    var n = sh.getLastRow() - 1;
-    sh.getRange(2, 3, n, 2).setNumberFormat('yyyy-mm-dd');
-    sh.getRange(2, 5, n, 1).setNumberFormat('$#,##0');
-    sh.getRange(2, 6, n, 1).setNumberFormat('0.00');
-    sh.getRange(2, 7, n, 1).setNumberFormat('$#,##0.00');
-    sh.getRange(2, 8, n, 1).setNumberFormat('0.00%');
-    sh.getRange(2, 1, n, HEADERS.length).sort({ column: 6, ascending: false });
-  }
-  return { added: fresh.length, skipped: rows.length - fresh.length };
+function rule(formula, color, range) {
+  return SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(formula).setBackground(color).setRanges([range]).build();
 }
 
-function list(sh) {
+function add(rows) {
+  var added = 0;
+  ['winners', 'killed'].forEach(function (key) {
+    var t = TABS[key];
+    var sh = tab(key);
+    var n = t.headers.length;
+    var have = {};
+    var last = sh.getLastRow();
+    if (last > 1) sh.getRange(2, 1, last - 1, 1).getValues().forEach(function (r) { have[String(r[0]).trim()] = true; });
+    var fresh = [];
+    rows.forEach(function (r) {
+      var name = String(r.creative || '').trim();
+      if ((r.tab || 'winners') !== key || !name || have[name]) return;
+      have[name] = true;
+      var row = [name, r.link ? '=HYPERLINK("' + String(r.link).replace(/"/g, '') + '","View ad")' : '', r.product, day(r.launch), day(r.day7), r.spend, r.roas, r.cpa, r.ctr, r.label, ''];
+      while (row.length < n) row.push('');
+      fresh.push(row);
+    });
+    if (!fresh.length) return;
+    sh.getRange(sh.getLastRow() + 1, 1, fresh.length, n).setValues(fresh);
+    var count = sh.getLastRow() - 1;
+    sh.getRange(2, 4, count, 2).setNumberFormat('yyyy-mm-dd');
+    sh.getRange(2, 6, count, 1).setNumberFormat('$#,##0');
+    sh.getRange(2, 7, count, 1).setNumberFormat('0.00');
+    sh.getRange(2, 8, count, 1).setNumberFormat('$#,##0.00');
+    sh.getRange(2, 9, count, 1).setNumberFormat('0.00%');
+    sh.getRange(2, 1, count, n).sort({ column: t.headers.indexOf(t.sortBy) + 1, ascending: false });
+    added += fresh.length;
+  });
+  return { added: added, skipped: rows.length - added };
+}
+
+function list(key) {
+  var sh = tab(key);
   var last = sh.getLastRow();
   if (last < 2) return [];
   var tz = Session.getScriptTimeZone();
   var d = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || ''); };
-  return sh.getRange(2, 1, last - 1, HEADERS.length).getValues().map(function (r) {
-    return { creative: String(r[0]), product: String(r[1]), launch: d(r[2]), day7: d(r[3]), spend: r[4], roas: r[5], label: String(r[8]).trim(), why: String(r[9]).trim(), next: String(r[10]).trim() };
+  return sh.getRange(2, 1, last - 1, TABS[key].headers.length).getValues().map(function (r) {
+    var s = function (i) { return String(r[i] || '').trim(); };
+    return { tab: key, creative: s(0), product: s(2), launch: d(r[3]), day7: d(r[4]), spend: r[5], roas: r[6], label: s(9), testing: s(10),
+      why: key === 'winners' ? s(11) : '', next: key === 'winners' ? s(12) : '', learned: key === 'killed' ? s(11) : '' };
   });
 }
 
+// A yyyy-mm-dd string is read as a date in the sheet's own time zone, so it shows the day Donnaa sent.
 function day(s) {
-  return s ? new Date(s + 'T00:00:00') : '';
+  return s || '';
 }
 
 function out(o) {

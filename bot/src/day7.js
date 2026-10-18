@@ -8,10 +8,13 @@
                          ROAS 1.8-2.0   Scale winner
                          ROAS 1.4-1.8   Winner         (1.4 is break-even)
                          ROAS 1.0-1.4   Keep running
-                         under 1.0      Check if it has sales and CTR 2%+, else kill
-                       Killed ads and ads under $100 stay out of the sheet. The team writes
-                       "why it won" and "next iteration" on the three winner labels.
-   Monday 9am Bangkok  winners from the last 7 days with no why or next iteration.
+                         under 1.0      Check if it has sales and CTR 2%+, else Killed
+                       Labelled ads go to the Winners tab, killed ones to the Killed tab, each
+                       with a preview link to the ad. Ads under $100 stay out. The team writes
+                       one line of "Testing" (the hypothesis, from the brief) on every row,
+                       "why it won" and "next iteration" on the three winner labels, and
+                       "what we learned" on killed ones.
+   Monday 9am Bangkok  rows from the last 7 days with those cells still empty.
    Friday 5pm Bangkok  the week's labels with creative names.
 
  The sheet is written through a small Apps Script web app bound to it
@@ -33,6 +36,7 @@ const MIN_SPEND = 100;
 const CHECK_CTR = 0.02;
 const LADDER = [[2, '🚀 Breakthrough'], [1.8, '💰 Scale winner'], [1.4, '✅ Winner'], [1, '⏳ Keep running']];
 const WINNERS = LADDER.slice(0, 3).map(([, l]) => l);
+const KILLED = '❌ Killed';
 const PRODUCTS = [
   [/corbel|corvael|corvel|natto/i, 'Corbel'],
   [/painbloc|pea\b/i, 'PainBloc'],
@@ -95,8 +99,11 @@ async function metaRows(days) {
       cpa: v.purchases ? Math.round((v.spend / v.purchases) * 100) / 100 : '',
       ctr: v.impressions ? v.clicks / v.impressions : 0,
       purchases: v.purchases,
+      link: v.link,
     };
     r.label = label(r);
+    if (!r.label && r.spend >= MIN_SPEND) r.label = KILLED;
+    r.tab = r.label === KILLED ? 'killed' : 'winners';
     return r;
   });
   return { rows: all.filter((r) => r.label), total: all.length, failed };
@@ -110,10 +117,11 @@ async function accountRows(acct, days, byName) {
   const ads = [];
   /* One call per ad, 10 at a time: Graph v26 dropped the ?ids= batch lookup. */
   for (let i = 0; i < ids.length; i += 10) {
-    const got = await Promise.all(ids.slice(i, i + 10).map((id) => meta.call('/' + id, { query: { fields: 'name,created_time,campaign{name}' } })));
-    got.forEach((a, j) => ads.push({ id: ids[i + j], name: a.name, launch: bkkDate(a.created_time), campaign: a.campaign && a.campaign.name }));
+    const got = await Promise.all(ids.slice(i, i + 10).map((id) => meta.call('/' + id, { query: { fields: 'name,created_time,campaign{name},preview_shareable_link' } })));
+    got.forEach((a, j) => ads.push({ id: ids[i + j], name: a.name, launch: bkkDate(a.created_time), campaign: a.campaign && a.campaign.name, link: a.preview_shareable_link }));
   }
   const launched = ads.filter((a) => a.launch >= from && a.launch <= to);
+  const linkOf = new Map(launched.map((a) => [a.id, a.link || `https://adsmanager.facebook.com/adsmanager/manage/ads?act=${acct.replace('act_', '')}&selected_ad_ids=${a.id}`]));
   for (const day of [...new Set(launched.map((a) => a.launch))]) {
     const group = launched.filter((a) => a.launch === day);
     const ins = await pages('/' + acct + '/insights', {
@@ -124,7 +132,7 @@ async function accountRows(acct, days, byName) {
     });
     for (const x of ins) {
       const k = x.ad_name;
-      const v = byName.get(k) || { creative: k, product: product(x.campaign_name), launch: day, spend: 0, impressions: 0, clicks: 0, purchases: 0, value: 0 };
+      const v = byName.get(k) || { creative: k, product: product(x.campaign_name), launch: day, spend: 0, impressions: 0, clicks: 0, purchases: 0, value: 0, link: linkOf.get(x.ad_id) };
       if (day < v.launch) v.launch = day;
       v.spend += Number(x.spend) || 0;
       v.impressions += Number(x.impressions) || 0;
@@ -170,16 +178,16 @@ const link = () => (process.env.DAY7_SHEET_LINK ? `<${process.env.DAY7_SHEET_LIN
 async function mondayText(now = Date.now()) {
   const since = addDays(bkkDate(now), -7);
   const { rows } = await sheet({ action: 'list' });
-  const open = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now) && WINNERS.includes(r.label) && (!r.why || !r.next));
+  const open = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now) && (!r.testing || (WINNERS.includes(r.label) && (!r.why || !r.next)) || (r.label === KILLED && !r.learned)));
   if (!open.length) return null;
-  return `${link()}: ${open.length} winners need "why it won" and "next iteration".\n${open.map((r) => `• ${r.label} ${r.creative} (ROAS ${r.roas})`).join('\n')}`;
+  return `${link()}: ${open.length} rows still need their lines filled in.\n${open.map((r) => `• ${r.label} ${r.creative} (ROAS ${r.roas})`).join('\n')}`;
 }
 
 async function fridayText(now = Date.now()) {
   const since = addDays(bkkDate(now), -6);
   const { rows } = await sheet({ action: 'list' });
   const week = rows.filter((r) => r.day7 >= since && r.day7 <= bkkDate(now));
-  const parts = [...LADDER.map(([, l]) => l), '⚠️ Check'].map((l) => { const names = week.filter((r) => r.label === l).map((r) => r.creative); return `${l} ${names.length}${names.length ? ': ' + names.join(', ') : ''}`; });
+  const parts = [...LADDER.map(([, l]) => l), '⚠️ Check', KILLED].map((l) => { const names = week.filter((r) => r.label === l).map((r) => r.creative); return `${l} ${names.length}${names.length ? ': ' + names.join(', ') : ''}`; });
   return `Day 7 this week (${link()}):\n${parts.join('\n')}`;
 }
 
