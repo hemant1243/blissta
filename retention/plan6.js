@@ -17,10 +17,17 @@ const MIX = { 1: 0.17, 3: 0.37, 5: 0.46 }; // bottles per box, recent first orde
 const EVERY = { 1: 28, 3: 56, 5: 84 };
 const PRICE = { 1: 28, 3: 65, 5: 95 }; // average net rebill by box size
 const MONTHS = ['2026-11', '2026-12', '2027-01', '2027-02', '2027-03', '2027-04'];
-const SCENARIOS = {
-  'Today': { aov: 98, rates: { 1: [0.76, 0.71, 0.71], 3: [0.64, 0.28, 0.7], 5: [0.74, 0.28, 0.7] } },
-  'Plan: $105 order, +10 pts': { aov: 105, rates: { 1: [0.86, 0.81, 0.81], 3: [0.74, 0.38, 0.8], 5: [0.84, 0.38, 0.8] } },
-  'Stretch: $115 order, 2nd rebill fixed': { aov: 115, rates: { 1: [0.86, 0.81, 0.81], 3: [0.8, 0.6, 0.8], 5: [0.84, 0.6, 0.8] } },
+// growth: ad spend each month = last month's spend x (1 + growth). cac: cost per new customer.
+const TODAY = { 1: [0.76, 0.71, 0.71], 3: [0.64, 0.28, 0.7], 5: [0.74, 0.28, 0.7] };
+const PLUS10 = { 1: [0.86, 0.81, 0.81], 3: [0.74, 0.38, 0.8], 5: [0.84, 0.38, 0.8] };
+const FIXED = { 1: [0.86, 0.81, 0.81], 3: [0.8, 0.6, 0.8], 5: [0.84, 0.6, 0.8] };
+const SCENARIOS = process.argv.includes('--grow') ? {
+  'Grow 1: $85 cap, spend +20% a month, $105 order, +10 pts': { aov: 105, cac: 85, growth: 0.2, rates: PLUS10 },
+  'Grow 2: $100 cap, spend +35% a month, $110 order, 2nd rebill fixed': { aov: 110, cac: 100, growth: 0.35, rates: FIXED },
+} : {
+  'Today': { aov: 98, rates: TODAY },
+  'Plan: $105 order, +10 pts': { aov: 105, rates: PLUS10 },
+  'Stretch: $115 order, 2nd rebill fixed': { aov: 115, rates: FIXED },
 };
 
 const day = 864e5;
@@ -49,16 +56,18 @@ async function main() {
     }
     // New customers, signed up through each month.
     MONTHS.forEach((m, i) => {
-      rows[m].fresh = NEW_PER_MONTH;
-      rows[m].spend = NEW_PER_MONTH * CAC;
-      rows[m].first = NEW_PER_MONTH * s.aov;
+      const cac = s.cac || CAC;
+      const fresh = Math.round(((NEW_PER_MONTH * CAC) * Math.pow(1 + (s.growth || 0), i)) / cac);
+      rows[m].fresh = fresh;
+      rows[m].spend = fresh * cac;
+      rows[m].first = fresh * s.aov;
       for (const b of [1, 3, 5]) {
         let alive = 1;
         for (let n = 1; ; n++) {
           const j = i + Math.round((n * EVERY[b]) / 30.4);
           if (j >= MONTHS.length) break;
           alive *= rate(s.rates[b], n);
-          rows[MONTHS[j]].newRebills += NEW_PER_MONTH * SUBSCRIBE * MIX[b] * alive * PRICE[b];
+          rows[MONTHS[j]].newRebills += rows[m].fresh * SUBSCRIBE * MIX[b] * alive * PRICE[b];
         }
       }
     });
@@ -69,7 +78,7 @@ async function main() {
       const revenue = x.first + x.newRebills + x.baseRebills;
       const profit = revenue * (1 - COGS_SHARE) - x.spend;
       cum += profit;
-      console.log(`${m}  ad spend $${Math.round(x.spend / 1000)}k  revenue $${Math.round(revenue / 1000)}k (first orders ${Math.round(x.first / 1000)}k, new rebills ${Math.round(x.newRebills / 1000)}k, existing base ${Math.round(x.baseRebills / 1000)}k)  profit $${Math.round(profit / 1000)}k  running $${Math.round(cum / 1000)}k`);
+      console.log(`${m}  new ${x.fresh}  ad spend $${Math.round(x.spend / 1000)}k  revenue $${Math.round(revenue / 1000)}k (first orders ${Math.round(x.first / 1000)}k, new rebills ${Math.round(x.newRebills / 1000)}k, existing base ${Math.round(x.baseRebills / 1000)}k)  profit $${Math.round(profit / 1000)}k  running $${Math.round(cum / 1000)}k`);
     }
   }
 }
