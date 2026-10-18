@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-18",
+  "cogsShare": 0.15,
+  "days": [
+    0,
+    30,
+    60,
+    90,
+    120
+  ],
+  "table": [
+    {
+      "cohort": "2026-05",
+      "customers": 403,
+      "value": [
+        67,
+        79,
+        133,
+        203,
+        205
+      ]
+    },
+    {
+      "cohort": "2026-06",
+      "customers": 1536,
+      "value": [
+        74,
+        86,
+        122,
+        150,
+        177
+      ]
+    },
+    {
+      "cohort": "2026-07",
+      "customers": 4897,
+      "value": [
+        82,
+        89,
+        104,
+        118,
+        null
+      ]
+    },
+    {
+      "cohort": "2026-08",
+      "customers": 3476,
+      "value": [
+        81,
+        87,
+        91,
+        null,
+        null
+      ]
+    },
+    {
+      "cohort": "2026-09",
+      "customers": 1696,
+      "value": [
+        82,
+        86,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "cohort": "2026-10",
+      "customers": 1702,
+      "value": [
+        83,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "newCustomers30d": {
+    "from": "2026-09-18",
+    "count": 2521,
+    "day1Value": 83
+  }
+}
