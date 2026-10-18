@@ -135,7 +135,7 @@ async function apply(limit) {
     await call('purchase/update', sent);
     const after = (await call('purchase/query', { purchaseId: p.purchaseId })).data[0];
     const good = money(cents(after.price)) === p.new_price && String(after.billingIntervalDays) === p.new_interval && after.nextBillDate === p.new_next;
-    fs.appendFileSync(LOG, JSON.stringify({ at: new Date().toISOString(), purchaseId: p.purchaseId, email: p.email, product: p.product, before: { price: now.price, every: now.billingIntervalDays, next: now.nextBillDate }, sent, after: { price: after.price, every: after.billingIntervalDays, next: after.nextBillDate }, good }) + '\n');
+    fs.appendFileSync(LOG, JSON.stringify({ at: new Date().toISOString(), purchaseId: p.purchaseId, email: p.email, product: p.product, bottles: p.bottles, before: { price: now.price, every: now.billingIntervalDays, next: now.nextBillDate }, sent, after: { price: after.price, every: after.billingIntervalDays, next: after.nextBillDate }, good }) + '\n');
     console.log(p.purchaseId, `$${now.price} ${now.billingIntervalDays}d ${now.nextBillDate}  ->  $${after.price} ${after.billingIntervalDays}d ${after.nextBillDate}`, good ? 'OK' : 'MISMATCH');
     if (!good) throw new Error(p.purchaseId + ': CC did not save what was sent, stopping');
     changed++;
@@ -144,9 +144,9 @@ async function apply(limit) {
 }
 
 function exportChanged() {
-  const rows = done().filter((d) => d.good).map((d) => ({ email: d.email, product: d.product, new_price: d.after.price, new_next_charge: d.after.next }));
+  const rows = done().filter((d) => d.good).map((d) => ({ email: d.email, product: d.product, bottles: d.bottles, new_price: d.after.price, new_next_charge: d.after.next }));
   const file = path.join(OUT, `sweep-changed-${iso(new Date())}.csv`);
-  fs.writeFileSync(file, toCsv(rows, ['email', 'product', 'new_price', 'new_next_charge']));
+  fs.writeFileSync(file, toCsv(rows, ['email', 'product', 'bottles', 'new_price', 'new_next_charge']));
   console.log(file, rows.length, 'customers');
 }
 
