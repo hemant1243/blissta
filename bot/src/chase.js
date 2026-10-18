@@ -89,6 +89,8 @@ async function fromBriefs(client, oldest) {
     const a = { key: 'briefs:' + concept, concept, conceptTokens: tokens(concept), source: 'briefs', channel: CH.briefs, ts: m.ts, assignedAt: null, assignee: null, assigner: m.user, delivered: null };
     let thread = [];
     try { thread = m.reply_count ? await replies(client, CH.briefs, m.ts) : []; } catch { /* no access, treat as no replies */ }
+    /* Briefs run by the pipeline (src/pipeline.js) get their nudges there. */
+    if (thread.some((r) => /`ref BRF-/.test(r.text || ''))) continue;
     for (const r of thread) {
       if (!a.assignee && r.user !== undefined && person(r.user).role !== 'Video Editor' && person(r.user).role !== 'Video Editor (trial)') {
         const who = mentions(r.text).find((u) => person(u).chase || person(u).role.startsWith('Video Editor'));

@@ -5,6 +5,7 @@ const { answer, reload } = require('./answer');
 const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
+const pipeline = require('./pipeline');
 const review = require('./review');
 const httpDoor = require('./http');
 const shopify = require('./shopify');
@@ -163,6 +164,8 @@ async function handle({ event, client, say }) {
   client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' }).catch(() => {});
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
+  /* pipeline on | off | status      owner only. */
+  if (tier === 'owner' && /^pipeline\s+(on|off|status)\s*$/i.test(text)) { await say({ text: pipeline.command(text), thread_ts }); return; }
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); const n = await refreshMemory(client); await say({ text: 'Reloaded: ' + f.join(', ') + ' plus ' + n + ' memory facts.', thread_ts }); return; }
   /* remember: fact      owner only. Stored in the memory channel, so it survives every deploy. */
   const remM = text.replace(/\s*\*Sent using\*[\s\S]*$/i, '').match(/^\s*remember\s*[:\-]\s*([\s\S]+)$/i);
@@ -355,6 +358,7 @@ app.message(async (args) => {
   await app.start();
   const auth = await app.client.auth.test();
   botUserId = auth.user_id;
+  pipeline.setBotUser(botUserId);
   console.log(`${BOT} is up as ${auth.user} (${botUserId}). Owners: ${[...OWNERS].join(', ') || 'none'}`);
   probeModel();
   bootMemory(app.client);
@@ -367,6 +371,12 @@ app.message(async (args) => {
     /* Unanswered tags of Hemant or Jenn: one DM to Hemant per new item, checked every 4 hours in his daytime. */
     const runR = async () => { try { const r = await review.tick(app.client); console.log('[review]', JSON.stringify(r)); } catch (e) { console.error('[review] tick failed:', e.message); } };
     setTimeout(runR, 90000); setInterval(runR, 4 * 3600000);
+  }
+  if (process.env.PIPELINE_ENABLED !== '0') {
+    /* Briefs channel: log, approve, tag editor, review, hand to Jenn, nudge after 24h. See src/pipeline.js. */
+    const runP = async () => { try { const r = await pipeline.tick(app.client); if (r && r.did && r.did.length) console.log('[pipeline]', JSON.stringify(r.did)); } catch (e) { console.error('[pipeline] tick failed:', e.message); } };
+    setTimeout(runP, 45000); setInterval(runP, 2 * 60000);
+    console.log('[pipeline] enabled, every 2 min');
   }
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
