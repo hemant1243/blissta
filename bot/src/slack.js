@@ -6,6 +6,7 @@ const { BOT, setMemory } = require('./brain');
 const launch = require('./launch');
 const chase = require('./chase');
 const pipeline = require('./pipeline');
+const day7 = require('./day7');
 const review = require('./review');
 const httpDoor = require('./http');
 const shopify = require('./shopify');
@@ -164,6 +165,11 @@ async function handle({ event, client, say }) {
   client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' }).catch(() => {});
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
+  /* day7 run | preview      owner only. */
+  if (tier === 'owner' && /^day7\s+(run|preview)\s*$/i.test(text)) {
+    try { await say({ text: await day7.command(text, client), thread_ts }); } catch (e) { await say({ text: 'Day 7 failed: ' + e.message, thread_ts }); }
+    return;
+  }
   /* pipeline on | off | status      owner only. */
   if (tier === 'owner' && /^pipeline\s+(on|off|status)\s*$/i.test(text)) { await say({ text: pipeline.command(text), thread_ts }); return; }
   if (/^reload knowledge$/i.test(text) && tier === 'owner') { const f = reload(); const n = await refreshMemory(client); await say({ text: 'Reloaded: ' + f.join(', ') + ' plus ' + n + ' memory facts.', thread_ts }); return; }
@@ -378,6 +384,9 @@ app.message(async (args) => {
     setTimeout(runP, 45000); setInterval(runP, 2 * 60000);
     console.log('[pipeline] enabled, every 2 min');
   }
+  /* Day 7 creative sheet: daily pull at 9am Bangkok, Monday and Friday posts. See src/day7.js. */
+  const runD = async () => { try { const r = await day7.tick(app.client); if (r.length) console.log('[day7]', JSON.stringify(r)); } catch (e) { console.error('[day7] tick failed:', e.message); } };
+  setTimeout(runD, 60000); setInterval(runD, 10 * 60000);
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
     const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };
