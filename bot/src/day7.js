@@ -38,7 +38,12 @@ const PRODUCTS = [
 const bkkDate = (t) => new Date(new Date(t).getTime() + BKK).toISOString().slice(0, 10);
 const addDays = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
 const product = (campaign) => (PRODUCTS.find(([re]) => re.test(campaign || '')) || [null, campaign || ''])[1];
-const account = () => { const a = (process.env.DAY7_META_ACCOUNT || process.env.META_AD_ACCOUNT_ID || (process.env.META_AD_ACCOUNTS || '').split(',')[0] || '').trim(); return a.startsWith('act_') ? a : 'act_' + a; };
+/* DAY7_META_ACCOUNT if set, else every ad account meta spend reports on. */
+async function accounts() {
+  const a = (process.env.DAY7_META_ACCOUNT || '').trim();
+  if (a) return [a.startsWith('act_') ? a : 'act_' + a];
+  return (await meta.adAccounts()).map((x) => x.id);
+}
 const act = (list, types) => { for (const t of types) { const a = (list || []).find((x) => x.action_type === t); if (a) return Number(a.value) || 0; } return 0; };
 
 async function pages(path, query) {
@@ -55,9 +60,34 @@ async function pages(path, query) {
 
 /* Ads launched (Bangkok date) on one of the given days, with their first 7 days of results, grouped by ad name. */
 async function metaRows(days) {
+  const byName = new Map();
+  const failed = [];
+  const list = await accounts();
+  let lastError;
+  for (const acct of list) {
+    try { await accountRows(acct, days, byName); } catch (e) { failed.push(acct); lastError = e; console.error('[day7]', acct, e.message); }
+  }
+  if (!list.length) throw new Error('no Meta ad accounts visible to the token');
+  if (failed.length === list.length) throw lastError;
+  const rows = [...byName.values()].map((v) => ({
+    creative: v.creative,
+    product: v.product,
+    launch: v.launch,
+    spend: Math.round(v.spend * 100) / 100,
+    hook: v.impressions ? v.views3s / v.impressions : '',
+    hold: v.views3s ? v.thruplays / v.views3s : '',
+    ctr: v.impressions ? v.clicks / v.impressions : '',
+    cpa: v.purchases ? Math.round((v.spend / v.purchases) * 100) / 100 : '',
+    verdict: v.spend < NO_READ_UNDER ? 'no read' : '',
+    source: 'Meta',
+  }));
+  return { rows, failed };
+}
+
+async function accountRows(acct, days, byName) {
   const from = days[0], to = days[days.length - 1];
   /* Only ads that delivered can have a Day 7 read, so start from insights, then look up launch times. */
-  const seen = await pages('/' + account() + '/insights', { level: 'ad', fields: 'ad_id', time_range: { since: from, until: bkkDate(Date.now()) } });
+  const seen = await pages('/' + acct + '/insights', { level: 'ad', fields: 'ad_id', time_range: { since: from, until: bkkDate(Date.now()) } });
   const ids = [...new Set(seen.map((x) => x.ad_id))];
   const ads = [];
   for (let i = 0; i < ids.length; i += 50) {
@@ -65,10 +95,9 @@ async function metaRows(days) {
     for (const [id, a] of Object.entries(r)) ads.push({ id, name: a.name, launch: bkkDate(a.created_time), campaign: a.campaign && a.campaign.name });
   }
   const launched = ads.filter((a) => a.launch >= from && a.launch <= to);
-  const byName = new Map();
   for (const day of [...new Set(launched.map((a) => a.launch))]) {
     const group = launched.filter((a) => a.launch === day);
-    const ins = await pages('/' + account() + '/insights', {
+    const ins = await pages('/' + acct + '/insights', {
       level: 'ad',
       fields: 'ad_id,ad_name,campaign_name,spend,impressions,inline_link_clicks,actions,video_thruplay_watched_actions',
       time_range: { since: day, until: addDays(day, 6) },
@@ -87,18 +116,6 @@ async function metaRows(days) {
       byName.set(k, v);
     }
   }
-  return [...byName.values()].map((v) => ({
-    creative: v.creative,
-    product: v.product,
-    launch: v.launch,
-    spend: Math.round(v.spend * 100) / 100,
-    hook: v.impressions ? v.views3s / v.impressions : '',
-    hold: v.views3s ? v.thruplays / v.views3s : '',
-    ctr: v.impressions ? v.clicks / v.impressions : '',
-    cpa: v.purchases ? Math.round((v.spend / v.purchases) * 100) / 100 : '',
-    verdict: v.spend < NO_READ_UNDER ? 'no read' : '',
-    source: 'Meta',
-  }));
 }
 
 async function sheet(body) {
@@ -114,9 +131,9 @@ async function sheet(body) {
 async function pull(now = Date.now()) {
   const today = bkkDate(now);
   const days = [addDays(today, -10), addDays(today, -9), addDays(today, -8), addDays(today, -7)];
-  const rows = await metaRows(days);
+  const { rows, failed } = await metaRows(days);
   const r = await sheet({ action: 'add', rows });
-  return { launchDays: days, found: rows.length, added: r.added, skipped: r.skipped };
+  return { launchDays: days, found: rows.length, added: r.added, skipped: r.skipped, failed };
 }
 
 /* ---------- Slack posts ---------- */
@@ -181,7 +198,7 @@ async function command(text, client) {
   if (!m) return null;
   if (m[1].toLowerCase() === 'run') {
     const r = await pull();
-    return `Day 7 pull: ${r.found} creatives launched ${r.launchDays[0]} to ${r.launchDays[3]}, ${r.added} added, ${r.skipped} already in the sheet.`;
+    return `Day 7 pull: ${r.found} creatives launched ${r.launchDays[0]} to ${r.launchDays[3]}, ${r.added} added, ${r.skipped} already in the sheet.${r.failed.length ? ` Could not read ${r.failed.join(', ')}.` : ''}`;
   }
   return `*Monday post:*\n${(await mondayText(client)) || '(nothing open)'}\n\n*Friday post:*\n${await fridayText()}`;
 }
