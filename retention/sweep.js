@@ -133,7 +133,9 @@ async function apply(limit) {
     if (cents(p.new_price) > cents(now.price)) throw new Error(p.purchaseId + ': price would go up');
     if (now.nextBillDate && p.new_next < now.nextBillDate) throw new Error(p.purchaseId + ': date would move earlier');
     if (Number(p.new_interval) > 84) throw new Error(p.purchaseId + ': interval above 84');
-    const sent = { purchaseId: p.purchaseId, price: p.new_price, billingIntervalDays: p.new_interval, nextBillDate: mdY(p.new_next) };
+    const sent = { purchaseId: p.purchaseId, price: p.new_price, billingIntervalDays: p.new_interval };
+    // CC only accepts future dates; a date of today or earlier is the current one, so leave it out.
+    if (p.new_next > iso(new Date())) sent.nextBillDate = mdY(p.new_next);
     await call('purchase/update', sent);
     const after = (await call('purchase/query', { purchaseId: p.purchaseId })).data[0];
     const good = money(cents(after.price)) === p.new_price && String(after.billingIntervalDays) === p.new_interval && after.nextBillDate === p.new_next;
