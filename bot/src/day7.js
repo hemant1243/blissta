@@ -90,9 +90,10 @@ async function accountRows(acct, days, byName) {
   const seen = await pages('/' + acct + '/insights', { level: 'ad', fields: 'ad_id', time_range: { since: from, until: bkkDate(Date.now()) } });
   const ids = [...new Set(seen.map((x) => x.ad_id))];
   const ads = [];
-  for (let i = 0; i < ids.length; i += 50) {
-    const r = await meta.call('/', { query: { ids: ids.slice(i, i + 50).join(','), fields: 'name,created_time,campaign{name}' } });
-    for (const [id, a] of Object.entries(r)) ads.push({ id, name: a.name, launch: bkkDate(a.created_time), campaign: a.campaign && a.campaign.name });
+  /* One call per ad, 10 at a time: Graph v26 dropped the ?ids= batch lookup. */
+  for (let i = 0; i < ids.length; i += 10) {
+    const got = await Promise.all(ids.slice(i, i + 10).map((id) => meta.call('/' + id, { query: { fields: 'name,created_time,campaign{name}' } })));
+    got.forEach((a, j) => ads.push({ id: ids[i + j], name: a.name, launch: bkkDate(a.created_time), campaign: a.campaign && a.campaign.name }));
   }
   const launched = ads.filter((a) => a.launch >= from && a.launch <= to);
   for (const day of [...new Set(launched.map((a) => a.launch))]) {
