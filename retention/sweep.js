@@ -8,6 +8,7 @@
 //   node retention/sweep.js --no-shorter    same, but never shortens an interval
 //   node retention/sweep.js --apply 5       change the next 5 from the newest plan, re-read each
 //   node retention/sweep.js --apply all     change the rest
+//   ... --apply all --plan <file>           apply a different plan file (same checks)
 //   node retention/sweep.js --export        everyone changed: email, product, new price, new date
 //
 // Before each change the subscription is re-read; if it no longer matches the plan it is skipped.
@@ -119,7 +120,8 @@ async function makePlan() {
 }
 
 async function apply(limit) {
-  const rows = fromCsv(fs.readFileSync(newestPlan(), 'utf8'));
+  const j = process.argv.indexOf('--plan');
+  const rows = fromCsv(fs.readFileSync(j > 0 ? path.resolve(process.argv[j + 1]) : newestPlan(), 'utf8'));
   const already = new Set(done().map((d) => d.purchaseId));
   const todo = rows.filter((r) => !already.has(r.purchaseId)).slice(0, limit === 'all' ? Infinity : Number(limit));
   let changed = 0, skipped = 0;
