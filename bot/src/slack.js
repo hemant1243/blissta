@@ -170,13 +170,18 @@ async function handle({ event, client, say }) {
   if (tier === 'owner' && msM) {
     const days = Number(msM[1] || 30);
     try {
-      const acct = (process.env.META_AD_ACCOUNT_ID || '').replace(/^(?!act_)/, 'act_');
       const until = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
       const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
-      const r = await require('./meta').call('/' + acct + '/insights', { query: { fields: 'spend,actions', time_range: { since, until } } });
-      const x = (r.data || [])[0] || {};
-      const buys = ((x.actions || []).find((a) => a.action_type === 'omni_purchase') || {}).value || 0;
-      await say({ text: `Meta ${acct}, ${since} to ${until}: spend $${Math.round(Number(x.spend || 0)).toLocaleString()}, purchases (Meta-counted) ${buys}.`, thread_ts });
+      const accts = await require('./meta').adAccounts();
+      const lines = [];
+      for (const a of accts) {
+        const r = await require('./meta').call('/' + a.id + '/insights', { query: { fields: 'spend,actions', time_range: { since, until } } });
+        const x = (r.data || [])[0] || {};
+        if (!Number(x.spend)) continue;
+        const buys = ((x.actions || []).find((y) => y.action_type === 'omni_purchase') || {}).value || 0;
+        lines.push(`${a.name} (${a.id}): spend $${Math.round(Number(x.spend)).toLocaleString()}, purchases (Meta-counted) ${buys}`);
+      }
+      await say({ text: `Meta, ${since} to ${until}:\n${lines.join('\n') || 'no spend on any account'}`, thread_ts });
     } catch (e) { await say({ text: 'Meta spend failed: ' + e.message, thread_ts }); }
     return;
   }

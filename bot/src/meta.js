@@ -187,4 +187,12 @@ async function launch({ items, copy, adsetId, onProgress = () => {} }) {
 const managerUrl = (adsetId) =>
   'https://adsmanager.facebook.com/adsmanager/manage/ads?act=' + account().replace('act_', '') + '&selected_adset_ids=' + adsetId;
 
-module.exports = { whoami, accountUsable, adSets, uploadImage, uploadVideo, waitForVideo, createCreative, createPausedAd, launch, managerUrl, call };
+/* Every ad account to report on: META_AD_ACCOUNT_ID, else META_AD_ACCOUNTS, else all the token can see. */
+async function adAccounts() {
+  const listed = [process.env.META_AD_ACCOUNT_ID, ...(process.env.META_AD_ACCOUNTS || '').split(',')].map((x) => (x || '').trim()).filter(Boolean);
+  if (listed.length) return [...new Set(listed)].map((id) => ({ id: id.startsWith('act_') ? id : 'act_' + id, name: id }));
+  const r = await call('/me/adaccounts', { query: { fields: 'id,name,account_status', limit: '100' } });
+  return (r.data || []).map((a) => ({ id: a.id, name: a.name }));
+}
+
+module.exports = { adAccounts, whoami, accountUsable, adSets, uploadImage, uploadVideo, waitForVideo, createCreative, createPausedAd, launch, managerUrl, call };

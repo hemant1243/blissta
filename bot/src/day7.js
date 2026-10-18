@@ -38,7 +38,7 @@ const PRODUCTS = [
 const bkkDate = (t) => new Date(new Date(t).getTime() + BKK).toISOString().slice(0, 10);
 const addDays = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
 const product = (campaign) => (PRODUCTS.find(([re]) => re.test(campaign || '')) || [null, campaign || ''])[1];
-const account = () => { const a = process.env.META_AD_ACCOUNT_ID || ''; return a.startsWith('act_') ? a : 'act_' + a; };
+const account = () => { const a = (process.env.DAY7_META_ACCOUNT || process.env.META_AD_ACCOUNT_ID || (process.env.META_AD_ACCOUNTS || '').split(',')[0] || '').trim(); return a.startsWith('act_') ? a : 'act_' + a; };
 const act = (list, types) => { for (const t of types) { const a = (list || []).find((x) => x.action_type === t); if (a) return Number(a.value) || 0; } return 0; };
 
 async function pages(path, query) {
