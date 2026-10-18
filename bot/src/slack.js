@@ -165,6 +165,21 @@ async function handle({ event, client, say }) {
   client.reactions.add({ channel: event.channel, timestamp: event.ts, name: 'eyes' }).catch(() => {});
   /* In a DM, answer in the main conversation. Thread replies are hidden in DMs. */
   const thread_ts = event.thread_ts || (isDM ? undefined : event.ts);
+  /* meta spend [days]      owner only. Main ad account spend and Meta-counted purchases, read only. */
+  const msM = /^meta spend(?:\s+(\d{1,3}))?\s*$/i.exec(text);
+  if (tier === 'owner' && msM) {
+    const days = Number(msM[1] || 30);
+    try {
+      const acct = (process.env.META_AD_ACCOUNT_ID || '').replace(/^(?!act_)/, 'act_');
+      const until = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+      const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+      const r = await require('./meta').call('/' + acct + '/insights', { query: { fields: 'spend,actions', time_range: { since, until } } });
+      const x = (r.data || [])[0] || {};
+      const buys = ((x.actions || []).find((a) => a.action_type === 'omni_purchase') || {}).value || 0;
+      await say({ text: `Meta ${acct}, ${since} to ${until}: spend $${Math.round(Number(x.spend || 0)).toLocaleString()}, purchases (Meta-counted) ${buys}.`, thread_ts });
+    } catch (e) { await say({ text: 'Meta spend failed: ' + e.message, thread_ts }); }
+    return;
+  }
   /* day7 run | preview      owner only. */
   if (tier === 'owner' && /^day7\s+(run|preview)\s*$/i.test(text)) {
     try { await say({ text: await day7.command(text, client), thread_ts }); } catch (e) { await say({ text: 'Day 7 failed: ' + e.message, thread_ts }); }
