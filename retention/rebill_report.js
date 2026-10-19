@@ -44,7 +44,12 @@ function row(r, today) {
   const first = paid[0] ? when(paid[0].txnDate) : when(r.dateCreated);
   const every = Number(r.billingIntervalDays) * day;
   const rebills = paid.length - 1;
-  const due = (n) => rebills >= n || first.getTime() + n * every + GRACE <= today.getTime();
+  // A live subscription is due for its next rebill once its own charge date has passed or it is in card retries (intervals were
+  // shortened on Oct 18 without moving dates earlier). Ended ones kept their old interval, so time decides.
+  const ended = ['CANCELLED', 'RECYCLE_FAILED'].includes(r.status);
+  const nextPassed = r.nextBillDate && new Date(r.nextBillDate + 'T00:00:00Z').getTime() + GRACE <= today.getTime();
+  const due = (n) => rebills >= n
+    || (ended ? first.getTime() + n * every + GRACE <= today.getTime() : n === rebills + 1 && (r.status === 'RECYCLE_BILLING' || !!nextPassed));
   const r1 = paid[1] || null;
   const declinedAfterFirst = r.transactions.some((t) => /DECLINE/.test(t.responseType) && when(t.txnDate) > first);
   const cancelledAt = r.status === 'CANCELLED' ? when(r.lastCancellationDate || r.dateUpdated) : null;
