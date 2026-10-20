@@ -185,6 +185,11 @@ async function handle({ event, client, say }) {
     } catch (e) { await say({ text: 'Meta spend failed: ' + e.message, thread_ts }); }
     return;
   }
+  /* top ads [n] [days]      owner only, read only. Winning ads with copy, image and video links. See src/topads.js. */
+  if (tier === 'owner' && /^top ads(\s+\d{1,3}){0,2}\s*$/i.test(text)) {
+    try { for (const t of await require('./topads').command(text)) await say({ text: t, thread_ts, unfurl_links: false, unfurl_media: false }); } catch (e) { await say({ text: 'Top ads failed: ' + e.message, thread_ts }); }
+    return;
+  }
   /* day7 run | preview      owner only. */
   if (tier === 'owner' && /^day7\s+(run|preview)\s*$/i.test(text)) {
     try { await say({ text: await day7.command(text, client), thread_ts }); } catch (e) { await say({ text: 'Day 7 failed: ' + e.message, thread_ts }); }
