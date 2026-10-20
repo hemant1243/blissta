@@ -85,12 +85,46 @@ function message(r, i) {
   return lines.join('\n').slice(0, 39000);
 }
 
+/* Every comment on an ad's post, hidden ones included, oldest first. Needs the token to read the page. */
+async function comments(adId) {
+  const a = await meta.call('/' + adId, { query: { fields: 'creative{effective_object_story_id}' } });
+  const post = a.creative && a.creative.effective_object_story_id;
+  if (!post) return { error: 'no post behind this ad' };
+  const list = await pages('/' + post + '/comments', { fields: 'message,created_time,is_hidden,like_count,comment_count', filter: 'stream', order: 'chronological' });
+  return { post, list: list.filter((c) => c.message) };
+}
+
+/* "ad comments [n] [days]": the comments under the top n winners, split into Slack-sized messages. */
+async function commentsCommand(text) {
+  const m = /^ad comments(?:\s+(\d{1,3}))?(?:\s+(\d{1,3}))?\s*$/i.exec(String(text || '').trim());
+  if (!m) return null;
+  const r = await top({ n: Number(m[1] || 20), days: Number(m[2] || 30) });
+  const out = [`Comments on the top ${r.ads.length} winning ads, ${r.since} to ${r.until}. Hidden comments are marked [HIDDEN].`];
+  const seen = new Set();
+  for (const [i, ad] of r.ads.entries()) {
+    let c;
+    try { c = await comments(ad.id); } catch (e) { c = { error: e.message }; }
+    if (c.post && seen.has(c.post)) { out.push(`*#${i + 1} ${ad.name}*: same post as an ad above.`); continue; }
+    if (c.post) seen.add(c.post);
+    if (c.error) { out.push(`*#${i + 1} ${ad.name}*: comments failed: ${c.error}`); continue; }
+    let msg = `*#${i + 1} ${ad.name}* (${c.list.length} comments, ${c.list.filter((x) => x.is_hidden).length} hidden)`;
+    for (const x of c.list) {
+      const line = `\n• ${x.is_hidden ? '[HIDDEN] ' : ''}${x.message.replace(/\s+/g, ' ').trim()}${x.like_count ? ` (${x.like_count} likes)` : ''}`;
+      if (msg.length + line.length > 35000) { out.push(msg); msg = `*#${i + 1} continued*`; }
+      msg += line;
+    }
+    out.push(msg);
+  }
+  return out;
+}
+
 /* Returns the Slack messages to send, header first. */
 async function command(text) {
+  if (/^ad comments/i.test(String(text || '').trim())) return commentsCommand(text);
   const m = /^top ads(?:\s+(\d{1,3}))?(?:\s+(\d{1,3}))?\s*$/i.exec(String(text || '').trim());
   if (!m) return null;
   const r = await top({ n: Number(m[1] || 20), days: Number(m[2] || 30) });
   return [`Top ads ${r.since} to ${r.until}: ${r.total} ads with $${MIN_SPEND}+ spend and ROAS ${MIN_ROAS}+, showing the top ${r.ads.length} by spend.`, ...r.ads.map(message)];
 }
 
-module.exports = { command, top };
+module.exports = { command, top, comments };
