@@ -26,9 +26,9 @@ const account = () => {
 };
 
 /* Meta answers 200 with an error body often enough that we check both. */
-async function call(path, { method = 'GET', form, query } = {}) {
+async function call(path, { method = 'GET', form, query, accessToken } = {}) {
   const url = new URL(API + path);
-  url.searchParams.set('access_token', token());
+  url.searchParams.set('access_token', accessToken || token());
   for (const [k, v] of Object.entries(query || {})) url.searchParams.set(k, typeof v === 'string' ? v : JSON.stringify(v));
   const init = { method };
   if (form) {

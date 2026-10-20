@@ -15,9 +15,9 @@ const MIN_ROAS = 1.4;
 const PURCHASE = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'];
 const act = (list) => { for (const t of PURCHASE) { const a = (list || []).find((x) => x.action_type === t); if (a) return Number(a.value) || 0; } return 0; };
 
-async function pages(path, query) {
+async function pages(path, query, accessToken) {
   const out = [];
-  let r = await meta.call(path, { query: { limit: '500', ...query } });
+  let r = await meta.call(path, { query: { limit: '500', ...query }, accessToken });
   for (;;) {
     out.push(...(r.data || []));
     if (!r.paging || !r.paging.next) return out;
@@ -85,12 +85,20 @@ function message(r, i) {
   return lines.join('\n').slice(0, 39000);
 }
 
-/* Every comment on an ad's post, hidden ones included, oldest first. Needs the token to read the page. */
+/* Page comments need a Page token. The system user token can fetch one when the Page is assigned to it with pages_read_engagement and pages_read_user_content. */
+const pageTokens = {};
+async function pageToken(pageId) {
+  if (!(pageId in pageTokens)) pageTokens[pageId] = meta.call('/' + pageId, { query: { fields: 'access_token' } }).then((r) => r.access_token || null, () => null);
+  return pageTokens[pageId];
+}
+
+/* Every comment on an ad's post, hidden ones included, oldest first. */
 async function comments(adId) {
   const a = await meta.call('/' + adId, { query: { fields: 'creative{effective_object_story_id}' } });
   const post = a.creative && a.creative.effective_object_story_id;
   if (!post) return { error: 'no post behind this ad' };
-  const list = await pages('/' + post + '/comments', { fields: 'message,created_time,is_hidden,like_count,comment_count', filter: 'stream', order: 'chronological' });
+  const pt = await pageToken(post.split('_')[0]);
+  const list = await pages('/' + post + '/comments', { fields: 'message,created_time,is_hidden,like_count,comment_count', filter: 'stream', order: 'chronological' }, pt || undefined);
   return { post, list: list.filter((c) => c.message) };
 }
 
@@ -106,6 +114,7 @@ async function commentsCommand(text) {
     try { c = await comments(ad.id); } catch (e) { c = { error: e.message }; }
     if (c.post && seen.has(c.post)) { out.push(`*#${i + 1} ${ad.name}*: same post as an ad above.`); continue; }
     if (c.post) seen.add(c.post);
+    if (c.error && /pages_read_user_content/.test(c.error)) { out.push('Comments failed: the Meta token cannot read the Page. In Business Settings, assign the Page to the system user, regenerate its token with pages_read_engagement and pages_read_user_content, and put it in META_ACCESS_TOKEN on Railway.'); break; }
     if (c.error) { out.push(`*#${i + 1} ${ad.name}*: comments failed: ${c.error}`); continue; }
     let msg = `*#${i + 1} ${ad.name}* (${c.list.length} comments, ${c.list.filter((x) => x.is_hidden).length} hidden)`;
     for (const x of c.list) {
