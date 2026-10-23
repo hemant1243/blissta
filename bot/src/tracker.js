@@ -21,7 +21,7 @@
    Awaiting Review (rev >0)  editor resubmitted             the strategist
    Approved                  final approval                 Jenn, with the parent Drive link
    Blocked                   not in the ask, but useful     the strategist and Hemant
- "Editing" is logged and not posted: nothing changes hands there.
+ "Editing" is posted without a tag (nothing changes hands), so days in Editing can be counted.
 */
 const fs = require('fs');
 const path = require('path');
@@ -97,7 +97,8 @@ function decide(ev) {
   switch (s) {
     case 'Brief Assigned': return { kind: 'brief-needs-approval', tag: [OWNER], line: 'Brief needs your approval.' };
     case 'Ready for Editing': return { kind: 'brief-ready', tag: editor ? [editor] : [], line: editor ? 'Brief is approved and ready. It is yours.' : 'Brief is approved and ready, no editor assigned yet.' };
-    case 'Editing': return null;
+    /* Posted untagged since 23 Oct 2026 so the editor chase (chase.js) can count days in Editing. */
+    case 'Editing': return { kind: 'editing-started', tag: [], line: 'Editor started.' };
     case 'Awaiting Review': {
       const tag = hemants ? [OWNER, BRUCE] : [strategist];
       /* Bruce's ask, 26 Sep 2026: the parent Drive folder goes right under the message so the reviewer can open the cuts from Slack. */

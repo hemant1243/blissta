@@ -247,8 +247,8 @@ function mentionsItem(text, a) {
 }
 const daysAgo = (ts) => { const h = hoursAgo(ts); return h < 36 ? 'yesterday' : Math.round(h / 24) + ' days ago'; };
 
-/* One pass. Returns what it did so the caller can log it. */
-async function tick(client, { dryRun = false } = {}) {
+/* The Slack-room ladder used until Oct 23 2026. Kept for reference; nothing schedules it any more (see editorTick). */
+async function legacyTick(client, { dryRun = false } = {}) {
   const r = await collect(client);
   const me = await self(client);
   const now = Date.now() / 1000;
@@ -461,4 +461,207 @@ function renderSilent(rows, days = 14) {
   return lines.join('\n');
 }
 
-module.exports = { collect, renderOpenList, tick, silent, renderSilent, CH, person, tokens, names };
+/* ---------- editor chase from the Creative Tracker, Oct 23 2026 ---------- */
+/*
+ Spec from Hemant (via the cowork Claude), 23 Oct 2026. The tracker is the source of truth; Donnaa already
+ logs every status change from it in #creative-accountability, one thread per concept (see tracker.js).
+
+   When     once a day at 7am in each editor's own time zone (Slack profile). Editors only.
+   Late     24h turnaround: Ready for Editing (assigned), Editing or For Revision for more than 1 day.
+            Anyone on track gets nothing.
+   Message  #blissta-editor-room-2-0, as Donnaa, one line per late concept: name, stage, days, ETA?
+   Replies  a time ("1 hour", "30 min", "tonight") -> check again at that time + 60%; status changed ->
+            nothing, else one nudge. "Almost done" with no time -> ask how much longer.
+            No reply in 24h -> tag Bruce. No reply in 3 days -> Hemant in #donna, "your call".
+   Summary  once a day in #blissta-ops for Bruce and Hemant: delivered today, late, stuck over 7 days.
+   Rollout  CHASE_LIVE != 1 is the dry day: everything it would post goes to #donna instead.
+
+ Railway wipes the disk on deploy, so Slack is the memory: the tracker threads, Donnaa's own messages in
+ the editor room and their replies, and #donna.
+*/
+const TRACKER = 'C0C50D81ZUY';
+const EDITOR_ROOM = process.env.CHASE_ROOM || CH.editors;
+const OPS = 'C0BDMPESL5N';
+const BRUCE = 'U0C1G0L4F1T';
+const CHASE_HOUR = 7;
+const SUMMARY_UTC_HOUR = Number(process.env.CHASE_SUMMARY_UTC_HOUR || 12);
+const LATE_H = 24;
+const STUCK_D = 7;
+const TRACKER_DAYS = 45;
+const STAGES = ['Brief Assigned', 'Ready for Editing', 'Editing', 'Awaiting Review', 'For Revision', 'Approved', 'Blocked'];
+const EDITOR_STAGES = new Set(['Ready for Editing', 'Editing', 'For Revision']);
+const live = () => process.env.CHASE_LIVE === '1';
+
+const PEOPLE = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'people.json'), 'utf8'));
+const peopleByName = {};
+for (const [k, p] of Object.entries(PEOPLE)) if (!k.startsWith('_')) for (const n of [p.name, ...(p.aka || [])]) peopleByName[n.toLowerCase()] = p.slack;
+
+/* Tracker editor name -> Slack id: people.json first, then the Slack directory by full or display name. */
+let directory = null;
+async function editorId(client, name) {
+  const n = (name || '').trim().toLowerCase();
+  if (!n) return '';
+  if (peopleByName[n]) return peopleByName[n];
+  if (!directory) {
+    directory = [];
+    let cursor;
+    do {
+      const r = await client.users.list({ limit: 200, cursor });
+      directory.push(...(r.members || []).filter((m) => !m.deleted && !m.is_bot));
+      cursor = r.response_metadata && r.response_metadata.next_cursor;
+    } while (cursor);
+  }
+  const hit = directory.find((m) => [m.real_name, m.profile && m.profile.real_name, m.profile && m.profile.display_name].some((x) => (x || '').trim().toLowerCase() === n));
+  return hit ? hit.id : '';
+}
+const tzCache = {};
+async function tzOf(client, user) {
+  if (!(user in tzCache)) { try { tzCache[user] = (await client.users.info({ user })).user.tz || null; } catch { tzCache[user] = null; } }
+  return tzCache[user];
+}
+function localParts(tz, at = Date.now()) {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date(at));
+  const g = (t) => f.find((x) => x.type === t).value;
+  return { date: `${g('year')}-${g('month')}-${g('day')}`, hour: Number(g('hour')) % 24 };
+}
+
+/* Every concept the tracker logged, with its stage history read back from the thread. */
+async function concepts(client, now = Date.now()) {
+  const oldest = Math.floor(now / 1000) - TRACKER_DAYS * 86400;
+  const out = [];
+  for (const root of await history(client, TRACKER, oldest)) {
+    const id = ((root.text || '').match(/`(BRF-[A-Z0-9-]+)`/) || [])[1];
+    if (!id || root.thread_ts && root.thread_ts !== root.ts) continue;
+    const head = root.text || '';
+    const c = {
+      id, ts: root.ts, link: `https://slack.com/archives/${TRACKER}/p${String(root.ts).replace('.', '')}`,
+      name: (((head.match(/^\*([^*]+)\*/) || [])[1] || id).split(' · ').pop()).replace(/_/g, ' ').trim(),
+      editor: ((head.match(/Editor ([^·\n<]+)/) || [])[1] || '').trim(),
+      events: [],
+    };
+    if (root.reply_count) {
+      const r = await client.conversations.replies({ channel: TRACKER, ts: root.ts, limit: 200 });
+      for (const m of (r.messages || []).slice(1)) {
+        const st = ((m.text || '').match(/^\*([^*]+)\*/) || [])[1];
+        if (STAGES.includes(st)) c.events.push({ stage: st, ts: sec(m.ts) * 1000 });
+      }
+    }
+    const last = c.events[c.events.length - 1];
+    c.stage = last ? last.stage : 'Brief Assigned';
+    c.since = last ? last.ts : sec(root.ts) * 1000;
+    out.push(c);
+  }
+  return out;
+}
+const days = (ms) => Math.max(1, Math.floor(ms / 86400000));
+const lineFor = (c, now) => `• *${c.name}* · ${c.stage} · ${days(now - c.since)} day${days(now - c.since) === 1 ? '' : 's'} · ETA? \`${c.id}\``;
+
+/* "30 min", "1 hour", "2h", "tonight", "eod", "tomorrow" -> when that is, else null */
+function promisedAt(text, replyMs, tz) {
+  const t = (text || '').toLowerCase();
+  let m;
+  if (/half an? hour/.test(t)) return replyMs + 30 * 60000;
+  if ((m = t.match(/(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)\b/))) return replyMs + Number(m[1]) * 60000;
+  if (/\ban? (?:hour|hr)\b/.test(t)) return replyMs + 3600000;
+  if ((m = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b/))) return replyMs + Number(m[1]) * 3600000;
+  const at = (h, addDay = 0) => {
+    const { hour } = localParts(tz || 'UTC', replyMs);
+    return replyMs + ((h - hour + 24 * addDay + 24) % 24 || (addDay ? 24 : 2)) * 3600000;
+  };
+  if (/\btonight\b/.test(t)) return at(21);
+  if (/\b(eod|end of (?:the )?day|today)\b/.test(t)) return at(18);
+  if (/\btomorrow\b/.test(t)) return at(12, 1);
+  return null;
+}
+const ALMOST = /\b(almost|nearly|close to|finishing|wrapping up|on it|working on it|in progress)\b/i;
+
+async function editorTick(client, { now = Date.now() } = {}) {
+  const me = await self(client);
+  const did = [];
+  const cs = await concepts(client, now);
+  for (const c of cs) c.editorId = await editorId(client, c.editor);
+  const late = cs.filter((c) => EDITOR_STAGES.has(c.stage) && c.editor && now - c.since > LATE_H * 3600000);
+
+  const oldest = Math.floor(now / 1000) - 7 * 86400;
+  const room = await history(client, EDITOR_ROOM, oldest);
+  const donna = await history(client, DONNA, oldest);
+  const mine = (m) => isMine(m, me);
+  const post = async (channel, text, thread_ts, what) => {
+    if (live()) {
+      try { await client.chat.postMessage(Object.assign({ channel, text, unfurl_links: false }, thread_ts ? { thread_ts } : {})); }
+      catch (e) { await client.chat.postMessage({ channel: DONNA, text: `_Could not post in <#${channel}> (${e.data && e.data.error || e.message}). It said:_\n${text}`, unfurl_links: false }); }
+    }
+    else await client.chat.postMessage({ channel: DONNA, text: `_Dry run, would send in <#${channel}>${thread_ts ? ' (thread)' : ''}:_\n${text}`, unfurl_links: false });
+    did.push(what);
+  };
+  const dryPosted = (needle) => donna.some((m) => mine(m) && (m.text || '').startsWith('_Dry run') && (m.text || '').includes(needle));
+
+  /* 1. the 7am chase, once per editor per local day */
+  const byEditor = {};
+  for (const c of late) if (c.editorId) (byEditor[c.editorId] = byEditor[c.editorId] || []).push(c);
+  for (const [user, list] of Object.entries(byEditor)) {
+    const tz = await tzOf(client, user);
+    if (!tz) continue;
+    const { date, hour } = localParts(tz, now);
+    if (hour !== CHASE_HOUR) continue;
+    const marker = `<@${user}> past 24h`;
+    const sameDay = (m) => localParts(tz, sec(m.ts) * 1000).date === date;
+    const sentLive = room.some((m) => mine(m) && (m.text || '').startsWith(marker) && sameDay(m));
+    const sentDry = donna.some((m) => mine(m) && (m.text || '').startsWith('_Dry run') && (m.text || '').includes(marker) && sameDay(m));
+    if (sentLive || sentDry) continue;
+    await post(EDITOR_ROOM, `${marker}:\n${list.map((c) => lineFor(c, now)).join('\n')}`, null, { kind: 'chase', user, concepts: list.map((c) => c.id) });
+  }
+
+  /* 2. follow-ups on Donnaa's chase messages from the last 3 days (live only: dry runs have no replies) */
+  if (live()) {
+    for (const m of room.filter((x) => mine(x) && /^<@U[A-Z0-9]+> past 24h/.test(x.text || '') && now - sec(x.ts) * 1000 < 4 * 86400000)) {
+      const user = m.text.match(/^<@(U[A-Z0-9]+)>/)[1];
+      const ids = [...m.text.matchAll(/`(BRF-[A-Z0-9-]+)`/g)].map((x) => x[1]);
+      const mine3 = cs.filter((c) => ids.includes(c.id));
+      const chasedAt = sec(m.ts) * 1000;
+      const thread = m.reply_count ? ((await client.conversations.replies({ channel: EDITOR_ROOM, ts: m.ts, limit: 100 })).messages || []).slice(1) : [];
+      const theirs = thread.filter((x) => x.user === user).concat(room.filter((x) => x.user === user && !x.thread_ts && sec(x.ts) * 1000 > chasedAt));
+      const reply = theirs.sort((a, b) => sec(b.ts) - sec(a.ts))[0] || null;
+      const already = (re) => thread.some((x) => mine(x) && re.test(x.text || ''));
+      const moved = (since) => mine3.some((c) => c.since > since);
+      if (reply) {
+        const replyMs = sec(reply.ts) * 1000;
+        const when = promisedAt(reply.text, replyMs, await tzOf(client, user));
+        if (when) {
+          const checkAt = replyMs + (when - replyMs) * 1.6;
+          if (now >= checkAt && !moved(replyMs) && !already(/^Checking in/)) await post(EDITOR_ROOM, `Checking in <@${user}>: still showing ${mine3.map((c) => `*${c.name}* in ${c.stage}`).join(', ')}. Update?`, m.ts, { kind: 'nudge', user });
+        } else if (ALMOST.test(reply.text || '') && !moved(replyMs) && !already(/How much longer/)) {
+          await post(EDITOR_ROOM, `<@${user}> How much longer?`, m.ts, { kind: 'ask-time', user });
+        }
+        continue;
+      }
+      if (moved(chasedAt)) continue;
+      if (now - chasedAt > 24 * 3600000 && !already(new RegExp('<@' + BRUCE + '>'))) await post(EDITOR_ROOM, `<@${BRUCE}> no reply from <@${user}> on this in 24h.`, m.ts, { kind: 'bruce', user });
+      const tag = `has not answered the editor chase from ${new Date(chasedAt).toISOString().slice(0, 10)}`;
+      if (now - chasedAt > 3 * 86400000 && !donna.some((x) => mine(x) && (x.text || '').includes(tag) && (x.text || '').includes(user))) {
+        await post(DONNA, `<@${OWNER}> <@${user}> ${tag} (${mine3.map((c) => `*${c.name}*`).join(', ')}). Bruce was tagged after 24h. Your call. <https://slack.com/archives/${EDITOR_ROOM}/p${String(m.ts).replace('.', '')}|↗>`, null, { kind: 'report', user });
+      }
+    }
+  }
+
+  /* 3. daily summary for Bruce and Hemant */
+  const today = new Date(now).toISOString().slice(0, 10);
+  const sumMarker = `*Editor summary, ${today}*`;
+  const opsToday = live() ? await history(client, OPS, Math.floor(now / 1000) - 86400) : [];
+  if (new Date(now).getUTCHours() === SUMMARY_UTC_HOUR && !opsToday.some((m) => mine(m) && (m.text || '').startsWith(sumMarker)) && !dryPosted(sumMarker)) {
+    const dayAgo = now - 86400000;
+    const delivered = cs.filter((c) => c.events.some((e) => e.ts > dayAgo && (e.stage === 'Awaiting Review' || e.stage === 'Approved')));
+    const stuck = cs.filter((c) => !['Approved'].includes(c.stage) && now - c.since > STUCK_D * 86400000);
+    const who = (c) => (c.editorId ? `<@${c.editorId}>` : c.editor || 'no editor');
+    const lines = [sumMarker, `<@${BRUCE}> <@${OWNER}>`,
+      `*Delivered (last 24h): ${delivered.length}*`, ...delivered.map((c) => `• ${c.name} · ${who(c)} · ${c.stage}`),
+      `*Late (over 24h in an editor stage): ${late.length}*`, ...late.map((c) => `• ${c.name} · ${who(c)} · ${c.stage} ${days(now - c.since)}d`),
+      `*Stuck over ${STUCK_D} days: ${stuck.length}*`, ...stuck.map((c) => `• ${c.name} · ${who(c)} · ${c.stage} ${days(now - c.since)}d <${c.link}|↗>`)];
+    const noId = [...new Set(late.filter((c) => !c.editorId).map((c) => c.editor))];
+    if (noId.length) lines.push(`_Not chased, no Slack match for: ${noId.join(', ')}. Add them to bot/data/people.json._`);
+    await post(OPS, lines.join('\n'), null, { kind: 'summary', delivered: delivered.length, late: late.length, stuck: stuck.length });
+  }
+  return { did, late: late.length, concepts: cs.length };
+}
+
+module.exports = { collect, renderOpenList, tick: editorTick, editorTick, legacyTick, silent, renderSilent, CH, person, tokens, names, _t: { promisedAt, localParts, concepts, lineFor } };

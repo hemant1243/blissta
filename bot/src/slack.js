@@ -413,8 +413,8 @@ app.message(async (args) => {
   const runD = async () => { try { const r = await day7.tick(app.client); if (r.length) console.log('[day7]', JSON.stringify(r)); } catch (e) { console.error('[day7] tick failed:', e.message); } };
   setTimeout(runD, 60000); setInterval(runD, 10 * 60000);
   if (process.env.CHASE_ENABLED === '1') {
-    const every = Number(process.env.CHASE_EVERY_MIN || 60) * 60000;
-    const run = async () => { try { const r = await chase.tick(app.client); if (r.did.length) console.log('[chase]', JSON.stringify(r.did)); else console.log('[chase] tick, nothing due,', r.report.open.length, 'open'); } catch (e) { console.error('[chase] tick failed:', e.message); } };
+    const every = Number(process.env.CHASE_EVERY_MIN || 15) * 60000;
+    const run = async () => { try { const r = await chase.editorTick(app.client); console.log('[chase]', process.env.CHASE_LIVE === '1' ? 'live' : 'dry', JSON.stringify(r)); } catch (e) { console.error('[chase] tick failed:', e.message); } };
     setTimeout(run, 30000); setInterval(run, every);
     console.log('[chase] enabled, every', every / 60000, 'min');
   } else console.log('[chase] disabled (CHASE_ENABLED != 1)');
