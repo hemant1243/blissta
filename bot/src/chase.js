@@ -467,8 +467,8 @@ function renderSilent(rows, days = 14) {
  logs every status change from it in #creative-accountability, one thread per concept (see tracker.js).
 
    When     once a day at 7am in each editor's own time zone (Slack profile). Editors only.
-   Late     24h turnaround: Ready for Editing (assigned), Editing or For Revision for more than 1 day.
-            Anyone on track gets nothing.
+   Late     24h turnaround: Editing or For Revision for more than 1 day. Ready for Editing only when the editor
+            has nothing in progress, and only their oldest one. Anyone on track gets nothing.
    Message  #blissta-editor-room-2-0, as Donnaa, one line per late concept: name, stage, days, ETA?
    Replies  a time ("1 hour", "30 min", "tonight") -> check again at that time + 60%; status changed ->
             nothing, else one nudge. "Almost done" with no time -> ask how much longer.
@@ -580,7 +580,13 @@ async function editorTick(client, { now = Date.now() } = {}) {
   const did = [];
   const cs = await concepts(client, now);
   for (const c of cs) c.editorId = await editorId(client, c.editor);
-  const late = cs.filter((c) => EDITOR_STAGES.has(c.stage) && c.editor && now - c.since > LATE_H * 3600000);
+  /* Editors work one concept at a time, in order. A queue is not late: Ready for Editing only counts when that
+     editor has nothing in Editing or For Revision, and then only the oldest one (Hemant, 23 Oct 2026). */
+  const busy = new Set(cs.filter((c) => c.editor && (c.stage === 'Editing' || c.stage === 'For Revision')).map((c) => c.editor));
+  const nextUp = {};
+  for (const c of cs.filter((x) => x.stage === 'Ready for Editing' && x.editor).sort((a, b) => a.since - b.since)) if (!nextUp[c.editor]) nextUp[c.editor] = c.id;
+  const late = cs.filter((c) => EDITOR_STAGES.has(c.stage) && c.editor && now - c.since > LATE_H * 3600000
+    && (c.stage !== 'Ready for Editing' || (!busy.has(c.editor) && nextUp[c.editor] === c.id)));
 
   const oldest = Math.floor(now / 1000) - 7 * 86400;
   const room = await history(client, EDITOR_ROOM, oldest);
