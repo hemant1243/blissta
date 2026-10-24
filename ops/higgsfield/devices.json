@@ -1,0 +1,11 @@
+{
+  "_note": "Who uses which device on the shared Higgsfield login (from the sessions page, confirmed by Hemant 13 Oct 2026). IPs change; device + Chrome version + city are the stable signs.",
+  "devices": [
+    { "person": "Hemant", "device": "Macintosh", "chrome": "155", "place": "Bangkok, Thailand" },
+    { "person": "Ibad Ali", "device": "Windows", "chrome": "155", "place": "Karachi, Pakistan", "ips_seen": ["139.5.116.6", "103.72.1.157", "103.72.1.119"] },
+    { "person": "Zafa", "device": "Windows", "chrome": "154", "place": "Karachi, Pakistan", "ips_seen": ["118.103.231.243", "139.5.116.6", "139.5.116.20", "154.81.248.127"] },
+    { "person": "Edjill Parco", "device": "Windows", "chrome": "155", "place": "Bislig, Philippines", "ips_seen": ["2001:fd8:bc98:3e00:e5de:271d:d96c:923f"] },
+    { "person": "unknown (Ruth, Simon or Bruce)", "device": "Macintosh", "chrome": "154", "place": "Davao, Philippines", "ips_seen": ["143.44.184.255", "49.144.166.96"] },
+    { "person": "unknown (Ruth, Simon or Bruce)", "device": "Windows", "chrome": "154", "place": "Tandag, Philippines", "ips_seen": ["103.180.201.194"] }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+ "name": "ultrablue-s1-1x1",
+ "canvas": [
+  1080,
+  1080
+ ],
+ "mode": "wireframe",
+ "colors": {
+  "ground": "#F2EDE4",
+  "text": "#111111",
+  "accent": "#1B2A4A",
+  "hair": "#A8873A"
+ },
+ "elements": [
+  {
+   "type": "text",
+   "text": "14mg of real\nmethylene blue",
+   "x": 60,
+   "y": 60,
+   "w": 960,
+   "size": 112,
+   "align": "center",
+   "maxLines": 2
+  },
+  {
+   "type": "text",
+   "text": "and 11 more reasons to try it\nfor fibro fatigue",
+   "x": 60,
+   "y": 318,
+   "w": 960,
+   "size": 64,
+   "weight": 700,
+   "align": "center",
+   "maxLines": 2,
+   "role": "qualifier"
+  },
+  {
+   "type": "box",
+   "label": "POUCH",
+   "x": 380,
+   "y": 490,
+   "w": 320,
+   "h": 400
+  },
+  {
+   "type": "text",
+   "text": "14mg per\nserving",
+   "x": 60,
+   "y": 520,
+   "w": 270,
+   "size": 44,
+   "maxLines": 2,
+   "to": [
+    364,
+    560
+   ]
+  },
+  {
+   "type": "text",
+   "text": "20mg\nvitamin C",
+   "x": 60,
+   "y": 700,
+   "w": 270,
+   "size": 44,
+   "maxLines": 2,
+   "to": [
+    364,
+    760
+   ]
+  },
+  {
+   "type": "text",
+   "text": "99.9%\npure",
+   "x": 750,
+   "y": 520,
+   "w": 270,
+   "size": 44,
+   "align": "right",
+   "maxLines": 2,
+   "to": [
+    716,
+    560
+   ]
+  },
+  {
+   "type": "text",
+   "text": "Cold\nprocessed",
+   "x": 750,
+   "y": 700,
+   "w": 270,
+   "size": 44,
+   "align": "right",
+   "maxLines": 2,
+   "to": [
+    716,
+    760
+   ]
+  },
+  {
+   "type": "pill",
+   "text": "5 for $97.99",
+   "x": 560,
+   "y": 924,
+   "size": 50
+  }
+ ]
+}

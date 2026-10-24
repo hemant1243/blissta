@@ -1,0 +1,73 @@
+# START HERE: handoff for any new Claude chat (updated Oct 18 2026)
+
+Read this first, then the files it points to. Repo hemant1243/blissta, branch claude/yo-m920ap.
+
+## Who you work for
+Hemant (DONAAA), owner of Blissta, a US supplement brand on Meta ads. The products are Corvael/Corbel nattokinase, Methylene Blue (drops, Ultra Blue gummies), PainBloc PEA, Aeon, Gluco Gone.
+
+**How to talk to him:** plain, short, human. He is busy and stressed.
+- Give one clear answer or recommendation, not a list of options.
+- Act instead of describing.
+- Flag only serious things.
+- When he asks "what do I tell X", give the exact text to paste.
+
+## Hard rules (never break)
+- Never print or paste passwords or tokens. Credentials live only in env vars.
+- **Higgsfield is read-only** for the watch: never generate, buy, delete or change anything. Generating ad images is a separate job, and only when he asks; quote the credits first.
+- Never charge, refund, delete customers or bulk-change subscriptions without his OK.
+- Messages to customers or editors are shown to him before sending.
+- **Meta ads** are created PAUSED only. He switches them on.
+- **Live funnel or site changes:** save, show him, and he clicks Publish.
+- Don't work around safety-check denials. Tell him and let him decide.
+
+## Where things are
+- **Brand knowledge:**
+  - `bot/knowledge/OPERATOR_HANDBOOK.md`
+  - `brand/drive/*.md`: notes from his Google Drive, 155 files
+  - `brand/emotion-belief-map.md`
+- **Making ads:** `brand/SOP_AD_FACTORY.md`, with the mega prompt and delivery modes ("post it" / "upload it" / "keep it").
+- **Static design:** `brand/STATIC_DESIGN_SYSTEM_v3.md`.
+  - Free wireframe and type tool: `node design/typeset.js <spec> <out>`.
+  - Research behind it: `reports/Winning static ad design system.md`.
+- **Donnaa (Slack bot):** `bot/` on Railway, service powerful-insight. It auto-deploys from this branch in about 2–3 minutes.
+  - Check the live version: https://powerful-insight-production-d93f.up.railway.app/health
+  - `@Donnaa launch` takes image/video links and multi-paragraph copy, and creates paused ads.
+- **Higgsfield:** `ops/higgsfield/`. Now a 12-hour report (`REPORT12.md`) instead of the 5-minute watch, to save Claude usage.
+- **Retention / Checkout Champ:** `retention/`.
+
+## Open items (as of Oct 17)
+1. **Higgsfield 12-hour report:** Hemant must paste the switch-over text into the watcher chat; the routine prompt can only be changed there. Then confirm the 5-minute job is gone.
+2. **Separate Higgsfield logins:** the permanent fix for "who deleted what". The account has only one private workspace. Bring him team-workspace pricing and steps.
+3. **Seedance burn:** about 3,650 credits in 4.5 hours on Oct 15, about 90% Seedance. Suggested rule: no Seedance without his OK.
+4. **Bruce's tracker:** the app runs on Netlify and Replit, and the data sits in a Google Sheet owned by Bruce's personal Gmail. Drive blocks copying it.
+   - Ask Bruce to transfer ownership to blisstausa@gmail.com. The message is drafted; send only on Hemant's "send it".
+   - Then build the Slack-only flow in Donnaa: brief posted → logged → Hemant "ok" → editor tagged → video → review → approved. Start with steps 1 and 2.
+   - The tracker secret was pasted in a Slack DM on Sep 24 and should be rotated.
+5. **Facts to confirm on real labels:**
+   - Corbel: 20,000 FU in ads vs 10,000 FU on the spec-sheet label.
+   - MB gummies: 14mg vs 5mg.
+   - PainBloc: 1,200mg (the Project says 1,200).
+   - Guarantee: 30-day money-back is live.
+6. **GMP certificate:** done. The supplier is a cGMP-certified facility (Hemant confirmed Oct 18). Don't raise it again.
+7. **Two passwords** were posted in plain text in #ai-staticsxmark (Oct 6 and Oct 8). Rotate them.
+8. **Customer portal:** "Email & Order Id" login is saved in Checkout Champ but not published. Hemant said not to worry about it.
+9. **Edjill warning message:** drafted, not sent.
+10. **Railway CLI** is not logged in here, so Meta spend is missing from the P&L and editor scorecard.
+
+## Done Oct 18
+- **Briefs pipeline:** Donnaa runs the creative tracker in Slack (`bot/src/pipeline.js`): brief, approval by Hemant or Bruce, editor, cut, strategist review, then Jenn. Nudges after 24h. "pipeline off" stops it.
+- **Weekly rebill report:** `retention/rebill_report.js`, posted to #blissta-ops every Monday 9am Bangkok by a scheduled task bound to the Oct 18 chat.
+- **Subscription sweep:** 7,382 subs set to 1 bottle 28d, 2-3 bottles 56d, 4+ bottles 84d, price never above first order per bottle, charge dates never earlier (`retention/sweep.js`, log in `retention/out/`, git-ignored). Bottle count comes from the original order, not the plan name (plan names are price tiers).
+- **Revenue forecast:** `node retention/forecast.js 2027-01`.
+- **Day 7 creative sheet:** code is in `bot/src/day7.js` and `ops/day7/`. The sheet and its Apps Script and Railway variables are not set up yet. AppLovin is not connected. Slack posts stay off until Hemant says go.
+- **Acquisition cap (Hemant, Oct 18): $85 per new customer.** The real Meta cost was about $90 (Sep 18 to Oct 17: $249k spend for 2,769 new CC customers). COGS plus shipping is 15% of price. Raise the cap only if the Nov 22 retention check improves.
+- **Break-even ROAS (Hemant, Oct 24): 1.4×** on total sales vs all Meta spend, covering product, shipping, processor fees and refunds. Refund target: 3%. Oct 1 to 23 actual: 3.8% of gross sales (Shopify), ROAS 1.51×.
+- **Refunds:** under 5% of all charges this month (4.3%). Checkout now offers one-time and subscribe.
+- **Klaviyo:** the pre-billing reminder already exists. Don't build anything in Klaviyo.
+
+## Saving Claude usage
+Long chats re-read their whole history on every message. Start a fresh chat for a new topic and point it at this file. Use big multi-agent research only when he asks for it.
+
+## Winners Vault feed (Oct 24)
+- **Our own ads into the vault:** `bot/src/results.js`. Tuesday 6am Bangkok (or `vault results` from an owner), Donnaa pulls the last 30 days from Meta, merges copies, gives every creative with $100+ spend a verdict against 1.4 (same ladder as Day 7), and has Claude break down new ones once (image, or 6 video frames via ffmpeg-static, plus copy). Stored as messages in the private channel #blissta-vault-results (VAULT|, VAULTNUMS|, VAULTSUM|). The weekly summary of what our winners vs losers share is DMed to Hemant.
+- The Wednesday "Winners Vault weekly add" scheduled task reads that channel and merges it into the vault page (https://claude.ai/artifact/9xFo1D7eqCr4VyTd8UZSCG). Off switch: VAULT_RESULTS_ENABLED=0 on Railway. Max new per run: VAULT_MAX_NEW (40).

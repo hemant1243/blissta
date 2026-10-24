@@ -1,0 +1,2246 @@
+<title>Blissta Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f6f4;
+  --surface: #ffffff;
+  --surface-2: #eceff0;
+  --ink: #0f1614;
+  --ink-2: #4a5552;
+  --muted: #7d8884;
+  --line: #dde2e0;
+  --line-2: #c4cbc8;
+  --accent: #1e56c9;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4ecfb;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --good: #0a7d0a;
+  --good-soft: #e3f3e3;
+  --warn: #a86a00;
+  --warn-soft: #fbefd6;
+  --crit: #c22f2f;
+  --crit-soft: #fae2e2;
+  --shadow: 0 1px 2px rgba(15,22,20,.06), 0 8px 24px -12px rgba(15,22,20,.18);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1211; --surface: #161b1a; --surface-2: #1f2524; --ink: #f2f4f3; --ink-2: #b8c0bd; --muted: #7f8a86;
+    --line: #262d2b; --line-2: #384140; --accent: #4f86e8; --accent-ink: #0b1220; --accent-soft: #1b2942;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --good: #37c237; --good-soft: #14301a; --warn: #f0b23a; --warn-soft: #3a2c10; --crit: #f06060; --crit-soft: #3c1818;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1211; --surface: #161b1a; --surface-2: #1f2524; --ink: #f2f4f3; --ink-2: #b8c0bd; --muted: #7f8a86;
+  --line: #262d2b; --line-2: #384140; --accent: #4f86e8; --accent-ink: #0b1220; --accent-soft: #1b2942;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good: #37c237; --good-soft: #14301a; --warn: #f0b23a; --warn-soft: #3a2c10; --crit: #f06060; --crit-soft: #3c1818;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+h1, h2, h3 { font-family: Manrope, "IBM Plex Sans", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+.num, .tbl td, .tbl th, .kpi-val { font-variant-numeric: tabular-nums; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1240px; margin: 0 auto; padding: 14px 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.brand-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.brand .sub { color: var(--muted); font-size: 13px; }
+.status { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12.5px; flex-wrap: wrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: inline-block; }
+.dot.off { background: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px 10px; color: var(--ink-2); font-weight: 500; cursor: pointer; white-space: nowrap; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; gap: 20px; }
+section[hidden] { display: none; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.panel-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.panel-h h2 { font-size: 15px; font-weight: 700; }
+.panel-h .meta { color: var(--muted); font-size: 12.5px; }
+.grid { display: grid; gap: 20px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3-2 { grid-template-columns: 3fr 2fr; }
+@media (max-width: 860px) { .grid-2, .grid-3-2 { grid-template-columns: 1fr; } }
+
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 10px; display: grid; gap: 4px; grid-template-rows: auto auto auto 1fr; }
+.kpi-label { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.kpi-val { font-family: Manrope, sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.kpi-delta { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.delta { font-weight: 600; }
+.delta.up { color: var(--good); } .delta.down { color: var(--crit); } .delta.flat { color: var(--muted); }
+.kpi svg { width: 100%; height: 34px; display: block; margin-top: 4px; }
+
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: 300px; display: block; }
+.chart text { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--muted); }
+.chart .grid-l { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--line-2); }
+.chart .l1 { stroke: var(--s1); fill: none; stroke-width: 2; stroke-linejoin: round; }
+.chart .l2 { stroke: var(--s2); fill: none; stroke-width: 2; stroke-linejoin: round; }
+.chart .a1 { fill: var(--s1); opacity: .10; }
+.chart .zero { stroke: var(--line-2); stroke-dasharray: 3 3; }
+.chart .cross { stroke: var(--line-2); stroke-width: 1; }
+.chart .pt { stroke: var(--surface); stroke-width: 2; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: var(--shadow); min-width: 150px; display: none; z-index: 3; }
+.tip b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+.tip .r { display: flex; justify-content: space-between; gap: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.seg button { background: var(--surface); border: 0; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.alerts { display: grid; gap: 8px; }
+.alert { display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+.alert:last-child { border-bottom: 0; }
+.alert .bar { height: 100%; min-height: 28px; border-radius: 2px; background: var(--warn); }
+.alert.critical .bar { background: var(--crit); } .alert.good .bar { background: var(--good); }
+.alert .t { font-weight: 600; } .alert .d { color: var(--muted); font-size: 12.5px; }
+.alert .v { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; text-align: right; }
+.alert.critical .v .delta { color: var(--crit); } .alert.warning .v .delta { color: var(--warn); } .alert.good .v .delta { color: var(--good); }
+
+.stack { display: grid; gap: 8px; }
+.stack-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--surface-2); }
+.stack-bar div { height: 100%; min-width: 2px; }
+.stack-key { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 14px; font-size: 12.5px; }
+.stack-key > span { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.stack-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: right; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+.tbl td:first-child { font-family: "IBM Plex Sans", sans-serif; font-size: 13px; }
+.tbl tr.sub td { font-weight: 600; background: var(--surface-2); }
+.tbl tr.total td { font-weight: 700; border-top: 2px solid var(--line-2); background: var(--surface-2); }
+.tbl tr.dim td { color: var(--muted); }
+.tbl td.neg { color: var(--crit); }
+.tbl td.pos { color: var(--good); }
+.tbl tr.group td { padding-top: 14px; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 0; }
+.tbl tbody tr:hover td { background: var(--accent-soft); }
+
+.hbars { display: grid; gap: 8px; }
+.hbar { display: grid; grid-template-columns: minmax(140px, 1.2fr) 3fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.hbar .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar .b { height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.hbar .b div { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; }
+.hbar .v { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+
+.form { display: grid; gap: 18px; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.in { width: 100%; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--surface); color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; }
+.in-row { display: grid; grid-template-columns: 1fr 140px 32px; gap: 8px; align-items: center; }
+.in-row.four { grid-template-columns: 150px 110px 1fr 32px; }
+.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { border-color: transparent; color: var(--accent); padding: 4px 8px; }
+.btn.x { padding: 4px 0; width: 32px; text-align: center; color: var(--muted); border-color: transparent; }
+.btn:hover { filter: brightness(1.04); }
+.form-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.form-h h3 { font-size: 14px; font-weight: 700; }
+.form-h .hint { font-size: 12px; color: var(--muted); }
+textarea.in { min-height: 90px; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.save-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.toast { font-size: 12.5px; color: var(--good); font-weight: 600; opacity: 0; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+.toast.err { color: var(--crit); }
+
+.report { white-space: pre-wrap; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.6; }
+.report strong { font-family: Manrope, sans-serif; font-size: 13.5px; }
+.report-list { display: grid; gap: 14px; }
+.report-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); }
+.report-item summary { cursor: pointer; font-weight: 600; font-family: Manrope, sans-serif; display: flex; justify-content: space-between; gap: 12px; }
+.report-item summary .meta { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+.empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+.note { font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand-row">
+    <div class="brand"><h1>Blissta Ledger</h1><span class="sub">Profit &amp; loss, every day</span></div>
+    <div class="status">
+      <span id="live"><span class="dot off"></span> Connecting</span>
+      <span id="asof"></span>
+      <span id="costs-state" class="pill warn" hidden>Placeholder costs</span>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" data-tab="pnl">P&amp;L</button>
+    <button class="tab" role="tab" data-tab="products">Products</button>
+    <button class="tab" role="tab" data-tab="costs">Costs</button>
+    <button class="tab" role="tab" data-tab="reports">Reports</button>
+  </nav>
+</div></header>
+
+<main>
+<section id="tab-overview" role="tabpanel">
+  <div class="grid">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid grid-3-2">
+      <div class="panel">
+        <div class="panel-h">
+          <div><h2>Revenue and net profit</h2><div class="legend"><span><i class="sw" style="background:var(--s1)"></i>Revenue</span><span><i class="sw" style="background:var(--s2)"></i>Net profit</span></div></div>
+          <div class="seg" id="range"><button aria-pressed="true" data-n="30">30 days</button><button data-n="90">90 days</button></div>
+        </div>
+        <div class="chart-wrap"><svg class="chart" id="main-chart" role="img" aria-label="Daily revenue and net profit"></svg><div class="tip" id="tip"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>Needs attention</h2><span class="meta" id="alert-meta"></span></div>
+        <div class="alerts" id="alerts"></div>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="panel">
+        <div class="panel-h"><h2>Where the money went</h2><span class="meta" id="stack-meta">Month to date</span></div>
+        <div class="stack" id="stack"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>Top products</h2><span class="meta">Net sales, last 30 days</span></div>
+        <div class="hbars" id="top-products"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-pnl" role="tabpanel" hidden>
+  <div class="panel">
+    <div class="panel-h">
+      <h2>Profit &amp; loss statement</h2>
+      <div class="seg" id="pnl-mode"><button aria-pressed="true" data-m="monthly">By month</button><button data-m="daily">By day, last 31</button></div>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="pnl-table"></table></div>
+    <p class="note" style="margin:12px 0 0">Revenue is Shopify total sales (net of discounts and refunds, plus shipping charged) plus any Amazon rows you add. COGS, shipping cost, fees, ad spend and fixed costs come from the Costs tab.</p>
+  </div>
+</section>
+
+<section id="tab-products" role="tabpanel" hidden>
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-h"><h2>Products, last 30 days</h2><span class="meta">Sorted by net sales</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="products-table"></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Order sources, last 30 days</h2><span class="meta">Shopify referrer</span></div>
+      <div class="tbl-wrap"><table class="tbl" id="channels-table"></table></div>
+      <p class="note" style="margin:12px 0 0">Most orders show no referrer in Shopify, which usually means ad-driven traffic landing without UTM tags. Adding UTMs to every ad link will split this by channel.</p>
+    </div>
+  </div>
+</section>
+
+<section id="tab-costs" role="tabpanel" hidden>
+  <div class="panel">
+    <div class="panel-h"><h2>Costs</h2><span class="meta">Changes apply to every number the moment you save</span></div>
+    <form class="form" id="costs-form" onsubmit="return false">
+      <div>
+        <div class="form-h"><h3>Per order</h3><span class="hint">Applied to every Shopify order</span></div>
+        <div class="fgrid">
+          <div class="field"><label for="cogsPct">Cost of goods, % of net sales</label><input class="in" id="cogsPct" type="number" step="0.1" min="0" max="100"><span class="hint">Landed product cost. Per-product COGS comes later.</span></div>
+          <div class="field"><label for="shippingCostPerOrder">Shipping cost per order, $</label><input class="in" id="shippingCostPerOrder" type="number" step="0.01" min="0"><span class="hint">Carrier plus 3PL pick and pack.</span></div>
+          <div class="field"><label for="feePct">Payment fee, %</label><input class="in" id="feePct" type="number" step="0.01" min="0"></div>
+          <div class="field"><label for="feeFixed">Payment fee, fixed per order $</label><input class="in" id="feeFixed" type="number" step="0.01" min="0"></div>
+        </div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Ad spend, default per day</h3><span class="hint">Used for any day without an override below</span></div>
+        <div class="fgrid">
+          <div class="field"><label for="ad_meta">Meta $</label><input class="in" id="ad_meta" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_google">Google $</label><input class="in" id="ad_google" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_tiktok">TikTok $</label><input class="in" id="ad_tiktok" type="number" step="1" min="0"></div>
+          <div class="field"><label for="ad_other">Other $</label><input class="in" id="ad_other" type="number" step="1" min="0"></div>
+        </div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Ad spend overrides by day</h3><button class="btn ghost" type="button" id="add-override">+ Add a day</button></div>
+        <div class="stack" id="overrides"></div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Fixed monthly costs</h3><button class="btn ghost" type="button" id="add-fixed">+ Add a line</button></div>
+        <div class="stack" id="fixed"></div>
+      </div>
+      <div>
+        <div class="form-h"><h3>Amazon</h3><span class="hint">Paste rows from a Seller Central export. Live sync comes later.</span></div>
+        <div class="field">
+          <label for="amazon">One row per day: date, revenue, refunds, fees, ad spend, cogs</label>
+          <textarea class="in" id="amazon" placeholder="2026-09-01, 4200.50, 120.00, 630.10, 800, 1260"></textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="btn primary" type="button" id="save-costs">Save costs</button>
+        <button class="btn" type="button" id="reset-costs">Reset to placeholders</button>
+        <span class="toast" id="toast"></span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section id="tab-reports" role="tabpanel" hidden>
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-h"><h2>Report preview from current numbers</h2><span class="meta" id="preview-meta"></span></div>
+      <div class="report" id="report-preview"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Morning reports</h2><span class="meta">Sent every day, newest first</span></div>
+      <div class="report-list" id="report-list"><div class="empty">No reports sent yet.</div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/* Blissta P&L engine. Runs in Node and in the browser (UMD-style). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.PNL = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var DEFAULT_COSTS = {
+    cogsPct: 0.30,              // placeholder: 30% of net product sales
+    shippingCostPerOrder: 6.50, // what you pay the carrier / 3PL per order
+    feePct: 0.029,              // payment processing
+    feeFixed: 0.30,
+    adDaily: { meta: 4000, google: 800, tiktok: 500, other: 0 }, // placeholder daily spend
+    adOverrides: {},            // { 'YYYY-MM-DD': { meta: 1234, ... } }
+    fixedMonthly: [
+      { name: 'Payroll & contractors', amount: 25000 },
+      { name: 'Software & tools', amount: 2500 },
+      { name: 'Rent / warehouse', amount: 3000 }
+    ],
+    amazon: []                  // [{ date, revenue, refunds, fees, adSpend, cogs }]
+  };
+
+  function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function daysInMonth(dateStr) {
+    var y = +dateStr.slice(0, 4), m = +dateStr.slice(5, 7);
+    return new Date(Date.UTC(y, m, 0)).getUTCDate();
+  }
+  function round2(n) { return Math.round(n * 100) / 100; }
+
+  /* rows: [{day, orders, gross_sales, discounts, sales_reversals, net_sales, shipping_charges, total_sales, new_customers, returning_customers, average_order_value}] */
+  function normalizeShopify(sales, customers) {
+    var cmap = {};
+    (customers && customers.rows || []).forEach(function (r) {
+      cmap[r[0]] = { newC: num(r[1]), retC: num(r[2]), aov: num(r[3]) };
+    });
+    var idx = {};
+    sales.columns.forEach(function (c, i) { idx[c] = i; });
+    return sales.rows.map(function (r) {
+      var c = cmap[r[idx.day]] || { newC: 0, retC: 0, aov: 0 };
+      return {
+        date: r[idx.day],
+        orders: num(r[idx.orders]),
+        gross: num(r[idx.gross_sales]),
+        discounts: -num(r[idx.discounts]),
+        refunds: -num(r[idx.sales_reversals]),
+        net: num(r[idx.net_sales]),
+        shipping: num(r[idx.shipping_charges]),
+        revenue: num(r[idx.total_sales]),
+        newCustomers: c.newC,
+        returningCustomers: c.retC,
+        aov: c.aov
+      };
+    });
+  }
+
+  function adSpendFor(date, costs) {
+    var o = costs.adOverrides && costs.adOverrides[date];
+    var base = costs.adDaily || {};
+    var out = {}, total = 0;
+    ['meta', 'google', 'tiktok', 'other'].forEach(function (ch) {
+      var v = (o && o[ch] != null) ? num(o[ch]) : num(base[ch]);
+      out[ch] = v; total += v;
+    });
+    out.total = total;
+    return out;
+  }
+
+  function amazonFor(date, costs) {
+    var rows = (costs.amazon || []).filter(function (a) { return a.date === date; });
+    var out = { revenue: 0, refunds: 0, fees: 0, adSpend: 0, cogs: 0 };
+    rows.forEach(function (a) {
+      out.revenue += num(a.revenue); out.refunds += num(a.refunds);
+      out.fees += num(a.fees); out.adSpend += num(a.adSpend); out.cogs += num(a.cogs);
+    });
+    return out;
+  }
+
+  function computeDaily(days, costs) {
+    costs = Object.assign({}, DEFAULT_COSTS, costs || {});
+    var fixedMonthly = (costs.fixedMonthly || []).reduce(function (s, f) { return s + num(f.amount); }, 0);
+    return days.map(function (d) {
+      var ads = adSpendFor(d.date, costs);
+      var amz = amazonFor(d.date, costs);
+      var cogs = d.net * num(costs.cogsPct) + amz.cogs;
+      var shipCost = d.orders * num(costs.shippingCostPerOrder);
+      var fees = d.revenue * num(costs.feePct) + d.orders * num(costs.feeFixed) + amz.fees;
+      var fixed = fixedMonthly / daysInMonth(d.date);
+      var revenue = d.revenue + amz.revenue - amz.refunds;
+      var adSpend = ads.total + amz.adSpend;
+      var contribution = revenue - cogs - shipCost - fees - adSpend;
+      var netProfit = contribution - fixed;
+      return {
+        date: d.date, orders: d.orders, gross: d.gross, discounts: d.discounts, refunds: d.refunds,
+        shopifyRevenue: d.revenue, amazonRevenue: amz.revenue - amz.refunds, revenue: revenue,
+        cogs: cogs, shippingCost: shipCost, fees: fees, adSpend: adSpend, ads: ads, fixed: fixed,
+        contribution: contribution, netProfit: netProfit,
+        margin: revenue > 0 ? netProfit / revenue : 0,
+        roas: adSpend > 0 ? revenue / adSpend : 0,
+        cac: d.newCustomers > 0 ? adSpend / d.newCustomers : 0,
+        refundRate: d.gross > 0 ? d.refunds / d.gross : 0,
+        newCustomers: d.newCustomers, returningCustomers: d.returningCustomers, aov: d.aov
+      };
+    });
+  }
+
+  var SUM_KEYS = ['orders', 'gross', 'discounts', 'refunds', 'shopifyRevenue', 'amazonRevenue', 'revenue', 'cogs', 'shippingCost', 'fees', 'adSpend', 'fixed', 'contribution', 'netProfit', 'newCustomers', 'returningCustomers'];
+
+  function sumRows(rows, label) {
+    var out = { label: label, days: rows.length };
+    SUM_KEYS.forEach(function (k) { out[k] = rows.reduce(function (s, r) { return s + r[k]; }, 0); });
+    out.margin = out.revenue > 0 ? out.netProfit / out.revenue : 0;
+    out.roas = out.adSpend > 0 ? out.revenue / out.adSpend : 0;
+    out.cac = out.newCustomers > 0 ? out.adSpend / out.newCustomers : 0;
+    out.refundRate = out.gross > 0 ? out.refunds / out.gross : 0;
+    out.aov = out.orders > 0 ? out.revenue / out.orders : 0;
+    return out;
+  }
+
+  function computeMonthly(daily) {
+    var groups = {};
+    daily.forEach(function (r) { var m = r.date.slice(0, 7); (groups[m] = groups[m] || []).push(r); });
+    return Object.keys(groups).sort().map(function (m) { return sumRows(groups[m], m); });
+  }
+
+  function pctChange(cur, base) { return base ? (cur - base) / Math.abs(base) : 0; }
+
+  /* Compare the last complete day against the trailing 7 complete days before it. */
+  function detectAnomalies(daily, asOfDate) {
+    var complete = daily.filter(function (r) { return r.date < asOfDate; });
+    if (complete.length < 8) return { yesterday: null, trailing: null, flags: [] };
+    var y = complete[complete.length - 1];
+    var trailing = sumRows(complete.slice(-8, -1), 'trailing7');
+    var avg = {};
+    SUM_KEYS.forEach(function (k) { avg[k] = trailing[k] / 7; });
+    avg.margin = trailing.margin; avg.refundRate = trailing.refundRate; avg.aov = trailing.aov; avg.roas = trailing.roas;
+    var checks = [
+      { key: 'revenue', label: 'Revenue', thresh: 0.25, money: true },
+      { key: 'orders', label: 'Orders', thresh: 0.25 },
+      { key: 'netProfit', label: 'Net profit', thresh: 0.30, money: true },
+      { key: 'newCustomers', label: 'New customers', thresh: 0.30 },
+      { key: 'aov', label: 'Average order value', thresh: 0.15, money: true },
+      { key: 'refundRate', label: 'Refund rate', thresh: 0.50, pct: true, badWhenUp: true },
+      { key: 'roas', label: 'ROAS', thresh: 0.25 }
+    ];
+    var flags = [];
+    checks.forEach(function (c) {
+      var change = pctChange(y[c.key], avg[c.key]);
+      if (Math.abs(change) >= c.thresh) {
+        var up = change > 0;
+        var bad = c.badWhenUp ? up : !up;
+        flags.push({ key: c.key, label: c.label, value: y[c.key], baseline: avg[c.key], change: change, severity: bad ? (Math.abs(change) >= c.thresh * 2 ? 'critical' : 'warning') : 'good', money: !!c.money, pct: !!c.pct });
+      }
+    });
+    flags.sort(function (a, b) { return Math.abs(b.change) - Math.abs(a.change); });
+    return { yesterday: y, trailing: avg, flags: flags };
+  }
+
+  function fmtMoney(n) {
+    var neg = n < 0; n = Math.abs(n);
+    var s = n >= 1000 ? Math.round(n).toLocaleString('en-US') : n.toFixed(2);
+    return (neg ? '-$' : '$') + s;
+  }
+  function fmtPct(n, digits) { return (n * 100).toFixed(digits == null ? 1 : digits) + '%'; }
+  function fmtChange(n) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%'; }
+
+  function buildReport(opts) {
+    var daily = opts.daily, asOf = opts.asOf, products = opts.products || [], costs = opts.costs || {};
+    var an = detectAnomalies(daily, asOf);
+    var y = an.yesterday; if (!y) return { title: 'Not enough data', text: 'Need at least 8 complete days.' };
+    var mtdRows = daily.filter(function (r) { return r.date.slice(0, 7) === y.date.slice(0, 7) && r.date <= y.date; });
+    var mtd = sumRows(mtdRows, 'MTD');
+    var l7 = sumRows(daily.filter(function (r) { return r.date <= y.date; }).slice(-7), 'L7');
+    var prev7 = sumRows(daily.filter(function (r) { return r.date <= y.date; }).slice(-14, -7), 'P7');
+    var lines = [];
+    lines.push('*Blissta morning report — ' + y.date + '*');
+    lines.push('');
+    lines.push('*Yesterday*');
+    lines.push('Revenue ' + fmtMoney(y.revenue) + ' (' + fmtChange(pctChange(y.revenue, an.trailing.revenue)) + ' vs 7-day avg) · ' + y.orders + ' orders · AOV ' + fmtMoney(y.aov));
+    lines.push('Net profit ' + fmtMoney(y.netProfit) + ' · margin ' + fmtPct(y.margin) + ' · ad spend ' + fmtMoney(y.adSpend) + ' · ROAS ' + y.roas.toFixed(2) + 'x');
+    lines.push('Refunds ' + fmtMoney(y.refunds) + ' (' + fmtPct(y.refundRate) + ' of gross) · new customers ' + y.newCustomers + ' · returning ' + y.returningCustomers);
+    lines.push('');
+    lines.push('*Last 7 days vs previous 7*');
+    lines.push('Revenue ' + fmtMoney(l7.revenue) + ' (' + fmtChange(pctChange(l7.revenue, prev7.revenue)) + ') · net profit ' + fmtMoney(l7.netProfit) + ' (' + fmtChange(pctChange(l7.netProfit, prev7.netProfit)) + ') · margin ' + fmtPct(l7.margin));
+    lines.push('');
+    lines.push('*Month to date (' + mtd.days + ' days)*');
+    lines.push('Revenue ' + fmtMoney(mtd.revenue) + ' · COGS ' + fmtMoney(mtd.cogs) + ' · shipping ' + fmtMoney(mtd.shippingCost) + ' · fees ' + fmtMoney(mtd.fees) + ' · ads ' + fmtMoney(mtd.adSpend) + ' · fixed ' + fmtMoney(mtd.fixed));
+    lines.push('Net profit ' + fmtMoney(mtd.netProfit) + ' · margin ' + fmtPct(mtd.margin) + ' · refund rate ' + fmtPct(mtd.refundRate));
+    lines.push('');
+    if (an.flags.length) {
+      lines.push('*Needs attention*');
+      an.flags.forEach(function (f) {
+        var icon = f.severity === 'critical' ? ':red_circle:' : f.severity === 'warning' ? ':large_orange_circle:' : ':large_green_circle:';
+        var val = f.money ? fmtMoney(f.value) : f.pct ? fmtPct(f.value) : f.key === 'roas' ? f.value.toFixed(2) + 'x' : Math.round(f.value);
+        var base = f.money ? fmtMoney(f.baseline) : f.pct ? fmtPct(f.baseline) : f.key === 'roas' ? f.baseline.toFixed(2) + 'x' : Math.round(f.baseline);
+        lines.push(icon + ' ' + f.label + ' ' + val + ' vs 7-day avg ' + base + ' (' + fmtChange(f.change) + ')');
+      });
+      lines.push('');
+    } else {
+      lines.push(':large_green_circle: Nothing outside normal range yesterday.');
+      lines.push('');
+    }
+    var top = products.filter(function (p) { return p.title && p.title !== 'Untitled / bundle lines'; }).sort(function (a, b) { return b.net - a.net; }).slice(0, 5);
+    if (top.length) {
+      lines.push('*Top products, last 30 days*');
+      top.forEach(function (p, i) { lines.push((i + 1) + '. ' + p.title + ' — ' + fmtMoney(p.net) + ' net'); });
+      lines.push('');
+    }
+    var placeholder = !costs.confirmed;
+    if (placeholder) lines.push('_COGS, ad spend and fixed costs are placeholders until you set them in the Costs tab._');
+    return { title: 'Blissta morning report ' + y.date, text: lines.join('\n'), anomalies: an, yesterday: y, mtd: mtd, l7: l7, prev7: prev7 };
+  }
+
+  function normalizeProducts(p) {
+    return (p.rows || []).map(function (r) {
+      return { title: r[0] || 'Untitled / bundle lines', gross: num(r[1]), net: num(r[2]), orders: num(r[3]) };
+    });
+  }
+  function normalizeChannels(c) {
+    return (c.rows || []).map(function (r) { return { source: r[0] || 'direct / untracked', orders: num(r[1]), sales: num(r[2]) }; });
+  }
+
+  return {
+    DEFAULT_COSTS: DEFAULT_COSTS, normalizeShopify: normalizeShopify, normalizeProducts: normalizeProducts, normalizeChannels: normalizeChannels,
+    computeDaily: computeDaily, computeMonthly: computeMonthly, sumRows: sumRows, detectAnomalies: detectAnomalies,
+    buildReport: buildReport, fmtMoney: fmtMoney, fmtPct: fmtPct, fmtChange: fmtChange, pctChange: pctChange, round2: round2
+  };
+});
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var SNAPSHOT = {
+ "asOf": "2026-09-08",
+ "refreshedAt": "2026-09-08T04:59:48.858Z",
+ "shopify": {
+  "days": [
+   {
+    "date": "2026-06-10",
+    "orders": 152,
+    "gross": 22988.01,
+    "discounts": 12542.23,
+    "refunds": 619.8,
+    "net": 9825.98,
+    "shipping": 209.59,
+    "revenue": 10035.57,
+    "newCustomers": 64,
+    "returningCustomers": 88,
+    "aov": 68.485
+   },
+   {
+    "date": "2026-06-11",
+    "orders": 145,
+    "gross": 18095.79,
+    "discounts": 9350.16,
+    "refunds": 509.27,
+    "net": 8236.36,
+    "shipping": 252.51,
+    "revenue": 8488.87,
+    "newCustomers": 50,
+    "returningCustomers": 93,
+    "aov": 60.314
+   },
+   {
+    "date": "2026-06-12",
+    "orders": 137,
+    "gross": 18629.38,
+    "discounts": 9415.41,
+    "refunds": 311.07,
+    "net": 8902.9,
+    "shipping": 244.51,
+    "revenue": 9147.41,
+    "newCustomers": 38,
+    "returningCustomers": 98,
+    "aov": 67.255
+   },
+   {
+    "date": "2026-06-13",
+    "orders": 128,
+    "gross": 19680.64,
+    "discounts": 10989.42,
+    "refunds": 514.78,
+    "net": 8176.44,
+    "shipping": 182.65,
+    "revenue": 8359.09,
+    "newCustomers": 54,
+    "returningCustomers": 74,
+    "aov": 67.618
+   },
+   {
+    "date": "2026-06-14",
+    "orders": 152,
+    "gross": 21528.51,
+    "discounts": 10975.49,
+    "refunds": 652.23,
+    "net": 9900.79,
+    "shipping": 185.66,
+    "revenue": 10086.45,
+    "newCustomers": 66,
+    "returningCustomers": 86,
+    "aov": 68.835
+   },
+   {
+    "date": "2026-06-15",
+    "orders": 131,
+    "gross": 19329.21,
+    "discounts": 9981.02,
+    "refunds": 419.21,
+    "net": 8928.98,
+    "shipping": 247.52,
+    "revenue": 9176.5,
+    "newCustomers": 47,
+    "returningCustomers": 84,
+    "aov": 71.36
+   },
+   {
+    "date": "2026-06-16",
+    "orders": 102,
+    "gross": 17420.16,
+    "discounts": 10188.06,
+    "refunds": 365.78,
+    "net": 6866.32,
+    "shipping": 79.84,
+    "revenue": 6946.16,
+    "newCustomers": 48,
+    "returningCustomers": 54,
+    "aov": 70.902
+   },
+   {
+    "date": "2026-06-17",
+    "orders": 133,
+    "gross": 21685.01,
+    "discounts": 12675.09,
+    "refunds": 919.63,
+    "net": 8090.29,
+    "shipping": 190.63,
+    "revenue": 8280.92,
+    "newCustomers": 63,
+    "returningCustomers": 70,
+    "aov": 67.743
+   },
+   {
+    "date": "2026-06-18",
+    "orders": 147,
+    "gross": 22450.71,
+    "discounts": 11541.53,
+    "refunds": 594.91,
+    "net": 10314.27,
+    "shipping": 180.67,
+    "revenue": 10494.94,
+    "newCustomers": 59,
+    "returningCustomers": 87,
+    "aov": 74.212
+   },
+   {
+    "date": "2026-06-19",
+    "orders": 141,
+    "gross": 19388.31,
+    "discounts": 10585.8,
+    "refunds": 623.63,
+    "net": 8178.88,
+    "shipping": 134.73,
+    "revenue": 8313.61,
+    "newCustomers": 48,
+    "returningCustomers": 92,
+    "aov": 62.429
+   },
+   {
+    "date": "2026-06-20",
+    "orders": 113,
+    "gross": 15159.6,
+    "discounts": 7621.69,
+    "refunds": 230.89,
+    "net": 7307.02,
+    "shipping": 167.68,
+    "revenue": 7474.7,
+    "newCustomers": 47,
+    "returningCustomers": 65,
+    "aov": 66.707
+   },
+   {
+    "date": "2026-06-21",
+    "orders": 178,
+    "gross": 26272.78,
+    "discounts": 13971.73,
+    "refunds": 129.98,
+    "net": 12171.07,
+    "shipping": 278.49,
+    "revenue": 12449.56,
+    "newCustomers": 54,
+    "returningCustomers": 122,
+    "aov": 69.107
+   },
+   {
+    "date": "2026-06-22",
+    "orders": 152,
+    "gross": 20167.63,
+    "discounts": 9504.49,
+    "refunds": 735.65,
+    "net": 9927.49,
+    "shipping": 204.59,
+    "revenue": 10132.08,
+    "newCustomers": 39,
+    "returningCustomers": 113,
+    "aov": 70.152
+   },
+   {
+    "date": "2026-06-23",
+    "orders": 88,
+    "gross": 7745.01,
+    "discounts": 2374.38,
+    "refunds": 250.69,
+    "net": 5119.94,
+    "shipping": 194.61,
+    "revenue": 5314.55,
+    "newCustomers": 7,
+    "returningCustomers": 79,
+    "aov": 61.029
+   },
+   {
+    "date": "2026-06-24",
+    "orders": 76,
+    "gross": 7666.67,
+    "discounts": 2556,
+    "refunds": 313.04,
+    "net": 4797.63,
+    "shipping": 114.77,
+    "revenue": 4912.4,
+    "newCustomers": 4,
+    "returningCustomers": 72,
+    "aov": 66.824
+   },
+   {
+    "date": "2026-06-25",
+    "orders": 176,
+    "gross": 15510.02,
+    "discounts": 3120,
+    "refunds": 849.7,
+    "net": 11540.32,
+    "shipping": 159.68,
+    "revenue": 11700,
+    "newCustomers": 54,
+    "returningCustomers": 121,
+    "aov": 70.397
+   },
+   {
+    "date": "2026-06-26",
+    "orders": 136,
+    "gross": 11962.64,
+    "discounts": 2532.93,
+    "refunds": 219.97,
+    "net": 9209.74,
+    "shipping": 169.66,
+    "revenue": 9379.4,
+    "newCustomers": 38,
+    "returningCustomers": 98,
+    "aov": 69.336
+   },
+   {
+    "date": "2026-06-27",
+    "orders": 108,
+    "gross": 8513.5,
+    "discounts": 1856.88,
+    "refunds": 204.81,
+    "net": 6451.81,
+    "shipping": 179.64,
+    "revenue": 6631.45,
+    "newCustomers": 30,
+    "returningCustomers": 76,
+    "aov": 61.635
+   },
+   {
+    "date": "2026-06-28",
+    "orders": 181,
+    "gross": 15452.45,
+    "discounts": 2949.61,
+    "refunds": 615.12,
+    "net": 11887.72,
+    "shipping": 244.51,
+    "revenue": 12132.23,
+    "newCustomers": 72,
+    "returningCustomers": 107,
+    "aov": 68.579
+   },
+   {
+    "date": "2026-06-29",
+    "orders": 212,
+    "gross": 18324.33,
+    "discounts": 2880.15,
+    "refunds": 526.45,
+    "net": 14917.73,
+    "shipping": 207.6,
+    "revenue": 15125.33,
+    "newCustomers": 121,
+    "returningCustomers": 88,
+    "aov": 72.34
+   },
+   {
+    "date": "2026-06-30",
+    "orders": 322,
+    "gross": 29805.31,
+    "discounts": 2923.22,
+    "refunds": 629.97,
+    "net": 26252.12,
+    "shipping": 194.61,
+    "revenue": 26446.73,
+    "newCustomers": 205,
+    "returningCustomers": 117,
+    "aov": 83.484
+   },
+   {
+    "date": "2026-07-01",
+    "orders": 308,
+    "gross": 27901.54,
+    "discounts": 2625.79,
+    "refunds": 1128,
+    "net": 24147.75,
+    "shipping": 192.63,
+    "revenue": 24340.38,
+    "newCustomers": 187,
+    "returningCustomers": 121,
+    "aov": 82.064
+   },
+   {
+    "date": "2026-07-02",
+    "orders": 390,
+    "gross": 35125.82,
+    "discounts": 2828.8,
+    "refunds": 524.93,
+    "net": 31772.09,
+    "shipping": 234.53,
+    "revenue": 32006.62,
+    "newCustomers": 265,
+    "returningCustomers": 124,
+    "aov": 82.812
+   },
+   {
+    "date": "2026-07-03",
+    "orders": 295,
+    "gross": 26169.64,
+    "discounts": 2521.12,
+    "refunds": 2931,
+    "net": 20717.52,
+    "shipping": 219.56,
+    "revenue": 20937.08,
+    "newCustomers": 177,
+    "returningCustomers": 117,
+    "aov": 80.164
+   },
+   {
+    "date": "2026-07-04",
+    "orders": 376,
+    "gross": 32030.19,
+    "discounts": 2263.61,
+    "refunds": 79.88,
+    "net": 29686.7,
+    "shipping": 354.29,
+    "revenue": 30040.99,
+    "newCustomers": 249,
+    "returningCustomers": 126,
+    "aov": 79.166
+   },
+   {
+    "date": "2026-07-05",
+    "orders": 430,
+    "gross": 36901.84,
+    "discounts": 2185.8,
+    "refunds": 573.71,
+    "net": 34142.33,
+    "shipping": 315.4,
+    "revenue": 34457.73,
+    "newCustomers": 294,
+    "returningCustomers": 136,
+    "aov": 80.734
+   },
+   {
+    "date": "2026-07-06",
+    "orders": 239,
+    "gross": 20795.14,
+    "discounts": 2424.45,
+    "refunds": 337.89,
+    "net": 18032.8,
+    "shipping": 247.52,
+    "revenue": 18280.32,
+    "newCustomers": 122,
+    "returningCustomers": 114,
+    "aov": 76.864
+   },
+   {
+    "date": "2026-07-07",
+    "orders": 226,
+    "gross": 19524.45,
+    "discounts": 3055.68,
+    "refunds": 1041.59,
+    "net": 15427.18,
+    "shipping": 212.59,
+    "revenue": 15639.77,
+    "newCustomers": 91,
+    "returningCustomers": 133,
+    "aov": 72.87
+   },
+   {
+    "date": "2026-07-08",
+    "orders": 242,
+    "gross": 21313.68,
+    "discounts": 2582,
+    "refunds": 1417.91,
+    "net": 17313.77,
+    "shipping": 220.56,
+    "revenue": 17534.33,
+    "newCustomers": 124,
+    "returningCustomers": 117,
+    "aov": 77.403
+   },
+   {
+    "date": "2026-07-09",
+    "orders": 226,
+    "gross": 19783.11,
+    "discounts": 2461.38,
+    "refunds": 563.81,
+    "net": 16757.92,
+    "shipping": 167.68,
+    "revenue": 16925.6,
+    "newCustomers": 116,
+    "returningCustomers": 109,
+    "aov": 76.503
+   },
+   {
+    "date": "2026-07-10",
+    "orders": 208,
+    "gross": 17161.34,
+    "discounts": 1862.41,
+    "refunds": 1114.77,
+    "net": 14184.16,
+    "shipping": 199.6,
+    "revenue": 14383.76,
+    "newCustomers": 106,
+    "returningCustomers": 102,
+    "aov": 73.552
+   },
+   {
+    "date": "2026-07-11",
+    "orders": 214,
+    "gross": 19067.28,
+    "discounts": 1697.59,
+    "refunds": 37.55,
+    "net": 17332.14,
+    "shipping": 186.85,
+    "revenue": 17518.99,
+    "newCustomers": 131,
+    "returningCustomers": 83,
+    "aov": 80.754
+   },
+   {
+    "date": "2026-07-12",
+    "orders": 226,
+    "gross": 20486.96,
+    "discounts": 1955.29,
+    "refunds": 725.86,
+    "net": 17805.81,
+    "shipping": 129.74,
+    "revenue": 17935.55,
+    "newCustomers": 124,
+    "returningCustomers": 101,
+    "aov": 81.998
+   },
+   {
+    "date": "2026-07-13",
+    "orders": 228,
+    "gross": 19573.22,
+    "discounts": 1439.02,
+    "refunds": 1452.15,
+    "net": 16682.05,
+    "shipping": 184.63,
+    "revenue": 16866.68,
+    "newCustomers": 157,
+    "returningCustomers": 71,
+    "aov": 79.535
+   },
+   {
+    "date": "2026-07-14",
+    "orders": 242,
+    "gross": 21777.59,
+    "discounts": 2058.5,
+    "refunds": 345.89,
+    "net": 19373.2,
+    "shipping": 174.65,
+    "revenue": 19547.85,
+    "newCustomers": 155,
+    "returningCustomers": 86,
+    "aov": 81.483
+   },
+   {
+    "date": "2026-07-15",
+    "orders": 225,
+    "gross": 19860.58,
+    "discounts": 1665.43,
+    "refunds": 571.77,
+    "net": 17623.38,
+    "shipping": 185.63,
+    "revenue": 17809.01,
+    "newCustomers": 137,
+    "returningCustomers": 88,
+    "aov": 80.796
+   },
+   {
+    "date": "2026-07-16",
+    "orders": 206,
+    "gross": 18310.76,
+    "discounts": 1413.31,
+    "refunds": 1536.41,
+    "net": 15361.04,
+    "shipping": 94.81,
+    "revenue": 15455.85,
+    "newCustomers": 139,
+    "returningCustomers": 67,
+    "aov": 82.026
+   },
+   {
+    "date": "2026-07-17",
+    "orders": 265,
+    "gross": 23460.26,
+    "discounts": 1913.35,
+    "refunds": 686.26,
+    "net": 20860.65,
+    "shipping": 147.72,
+    "revenue": 21008.37,
+    "newCustomers": 178,
+    "returningCustomers": 87,
+    "aov": 81.248
+   },
+   {
+    "date": "2026-07-18",
+    "orders": 358,
+    "gross": 31656.71,
+    "discounts": 1317.07,
+    "refunds": 702.15,
+    "net": 29637.49,
+    "shipping": 149.7,
+    "revenue": 29787.19,
+    "newCustomers": 273,
+    "returningCustomers": 84,
+    "aov": 84.747
+   },
+   {
+    "date": "2026-07-19",
+    "orders": 377,
+    "gross": 34484.24,
+    "discounts": 2764.62,
+    "refunds": 0,
+    "net": 31719.62,
+    "shipping": 147.72,
+    "revenue": 31867.34,
+    "newCustomers": 271,
+    "returningCustomers": 105,
+    "aov": 84.052
+   },
+   {
+    "date": "2026-07-20",
+    "orders": 298,
+    "gross": 27172.82,
+    "discounts": 1971.62,
+    "refunds": 723.34,
+    "net": 24477.86,
+    "shipping": 1151.68,
+    "revenue": 25629.54,
+    "newCustomers": 217,
+    "returningCustomers": 80,
+    "aov": 84.567
+   },
+   {
+    "date": "2026-07-21",
+    "orders": 240,
+    "gross": 22307.22,
+    "discounts": 2083.4,
+    "refunds": 1220.65,
+    "net": 19003.17,
+    "shipping": 946.12,
+    "revenue": 19949.29,
+    "newCustomers": 149,
+    "returningCustomers": 90,
+    "aov": 84.265
+   },
+   {
+    "date": "2026-07-22",
+    "orders": 264,
+    "gross": 24352.12,
+    "discounts": 2563.13,
+    "refunds": 1158.59,
+    "net": 20630.4,
+    "shipping": 1013.97,
+    "revenue": 21644.37,
+    "newCustomers": 154,
+    "returningCustomers": 110,
+    "aov": 82.534
+   },
+   {
+    "date": "2026-07-23",
+    "orders": 204,
+    "gross": 20033.88,
+    "discounts": 2465.14,
+    "refunds": 1493.77,
+    "net": 16074.97,
+    "shipping": 718.56,
+    "revenue": 16793.53,
+    "newCustomers": 118,
+    "returningCustomers": 84,
+    "aov": 86.121
+   },
+   {
+    "date": "2026-07-24",
+    "orders": 190,
+    "gross": 17397.33,
+    "discounts": 1508.4,
+    "refunds": 798.72,
+    "net": 15090.21,
+    "shipping": 731.55,
+    "revenue": 15821.76,
+    "newCustomers": 111,
+    "returningCustomers": 78,
+    "aov": 83.625
+   },
+   {
+    "date": "2026-07-25",
+    "orders": 208,
+    "gross": 19288.71,
+    "discounts": 1761.36,
+    "refunds": 334.71,
+    "net": 17192.64,
+    "shipping": 753.49,
+    "revenue": 17946.13,
+    "newCustomers": 119,
+    "returningCustomers": 89,
+    "aov": 84.112
+   },
+   {
+    "date": "2026-07-26",
+    "orders": 251,
+    "gross": 24405.1,
+    "discounts": 2296.41,
+    "refunds": 120.2,
+    "net": 21988.49,
+    "shipping": 893.21,
+    "revenue": 22881.7,
+    "newCustomers": 141,
+    "returningCustomers": 109,
+    "aov": 88.082
+   },
+   {
+    "date": "2026-07-27",
+    "orders": 201,
+    "gross": 17741.6,
+    "discounts": 2045.13,
+    "refunds": 2286.36,
+    "net": 13410.11,
+    "shipping": 703.59,
+    "revenue": 14113.7,
+    "newCustomers": 108,
+    "returningCustomers": 91,
+    "aov": 78.091
+   },
+   {
+    "date": "2026-07-28",
+    "orders": 235,
+    "gross": 24047.79,
+    "discounts": 2275.61,
+    "refunds": 918.77,
+    "net": 20853.41,
+    "shipping": 783.43,
+    "revenue": 21636.84,
+    "newCustomers": 117,
+    "returningCustomers": 117,
+    "aov": 92.647
+   },
+   {
+    "date": "2026-07-29",
+    "orders": 208,
+    "gross": 20308.95,
+    "discounts": 1632.31,
+    "refunds": 2275.48,
+    "net": 16401.16,
+    "shipping": 613.77,
+    "revenue": 17014.93,
+    "newCustomers": 79,
+    "returningCustomers": 129,
+    "aov": 89.791
+   },
+   {
+    "date": "2026-07-30",
+    "orders": 210,
+    "gross": 22500.27,
+    "discounts": 1874.24,
+    "refunds": 1635.45,
+    "net": 18990.58,
+    "shipping": 621.77,
+    "revenue": 19612.35,
+    "newCustomers": 94,
+    "returningCustomers": 116,
+    "aov": 98.219
+   },
+   {
+    "date": "2026-07-31",
+    "orders": 211,
+    "gross": 22456.52,
+    "discounts": 2040.89,
+    "refunds": 2765.09,
+    "net": 17650.54,
+    "shipping": 673.65,
+    "revenue": 18324.19,
+    "newCustomers": 108,
+    "returningCustomers": 103,
+    "aov": 96.756
+   },
+   {
+    "date": "2026-08-01",
+    "orders": 260,
+    "gross": 24088.07,
+    "discounts": 2392.4,
+    "refunds": 1077.74,
+    "net": 20617.93,
+    "shipping": 856.3,
+    "revenue": 21474.23,
+    "newCustomers": 126,
+    "returningCustomers": 132,
+    "aov": 83.444
+   },
+   {
+    "date": "2026-08-02",
+    "orders": 274,
+    "gross": 24228.05,
+    "discounts": 1928.99,
+    "refunds": 1063.7,
+    "net": 21235.36,
+    "shipping": 944.14,
+    "revenue": 22179.5,
+    "newCustomers": 144,
+    "returningCustomers": 129,
+    "aov": 81.15
+   },
+   {
+    "date": "2026-08-03",
+    "orders": 242,
+    "gross": 22399.38,
+    "discounts": 2181.64,
+    "refunds": 3406.83,
+    "net": 16810.91,
+    "shipping": 791.43,
+    "revenue": 17602.34,
+    "newCustomers": 110,
+    "returningCustomers": 130,
+    "aov": 83.544
+   },
+   {
+    "date": "2026-08-04",
+    "orders": 215,
+    "gross": 19177.64,
+    "discounts": 3253.55,
+    "refunds": 4080.38,
+    "net": 11843.71,
+    "shipping": 708.58,
+    "revenue": 12552.29,
+    "newCustomers": 107,
+    "returningCustomers": 106,
+    "aov": 74.065
+   },
+   {
+    "date": "2026-08-05",
+    "orders": 193,
+    "gross": 17143.84,
+    "discounts": 2161.6,
+    "refunds": 3386.31,
+    "net": 11595.93,
+    "shipping": 593.81,
+    "revenue": 12189.74,
+    "newCustomers": 72,
+    "returningCustomers": 117,
+    "aov": 77.462
+   },
+   {
+    "date": "2026-08-06",
+    "orders": 224,
+    "gross": 19552.87,
+    "discounts": 3321.03,
+    "refunds": 2344.68,
+    "net": 13887.16,
+    "shipping": 442.13,
+    "revenue": 14329.29,
+    "newCustomers": 105,
+    "returningCustomers": 118,
+    "aov": 72.383
+   },
+   {
+    "date": "2026-08-07",
+    "orders": 197,
+    "gross": 16204.61,
+    "discounts": 1467.62,
+    "refunds": 318.9,
+    "net": 14418.09,
+    "shipping": 352.31,
+    "revenue": 14770.4,
+    "newCustomers": 92,
+    "returningCustomers": 103,
+    "aov": 74.807
+   },
+   {
+    "date": "2026-08-08",
+    "orders": 203,
+    "gross": 16228,
+    "discounts": 2089.87,
+    "refunds": 974.47,
+    "net": 13163.66,
+    "shipping": 390.22,
+    "revenue": 13553.88,
+    "newCustomers": 102,
+    "returningCustomers": 100,
+    "aov": 69.645
+   },
+   {
+    "date": "2026-08-09",
+    "orders": 259,
+    "gross": 23217.34,
+    "discounts": 2294.33,
+    "refunds": 1422.76,
+    "net": 19500.25,
+    "shipping": 437.14,
+    "revenue": 19937.39,
+    "newCustomers": 145,
+    "returningCustomers": 114,
+    "aov": 80.783
+   },
+   {
+    "date": "2026-08-10",
+    "orders": 249,
+    "gross": 23065.36,
+    "discounts": 2445.31,
+    "refunds": 690.28,
+    "net": 19929.77,
+    "shipping": 389.22,
+    "revenue": 20318.99,
+    "newCustomers": 121,
+    "returningCustomers": 128,
+    "aov": 82.811
+   },
+   {
+    "date": "2026-08-11",
+    "orders": 288,
+    "gross": 23233.66,
+    "discounts": 2688.64,
+    "refunds": 2522.43,
+    "net": 18022.59,
+    "shipping": 439.12,
+    "revenue": 18461.71,
+    "newCustomers": 121,
+    "returningCustomers": 167,
+    "aov": 71.336
+   },
+   {
+    "date": "2026-08-12",
+    "orders": 231,
+    "gross": 21333.61,
+    "discounts": 2379.27,
+    "refunds": 2414.25,
+    "net": 16540.09,
+    "shipping": 394.21,
+    "revenue": 16934.3,
+    "newCustomers": 95,
+    "returningCustomers": 135,
+    "aov": 81.984
+   },
+   {
+    "date": "2026-08-13",
+    "orders": 227,
+    "gross": 20043.93,
+    "discounts": 1816.75,
+    "refunds": 3241.16,
+    "net": 14986.02,
+    "shipping": 244.51,
+    "revenue": 15230.53,
+    "newCustomers": 74,
+    "returningCustomers": 151,
+    "aov": 80.216
+   },
+   {
+    "date": "2026-08-14",
+    "orders": 248,
+    "gross": 21195.38,
+    "discounts": 1874.85,
+    "refunds": 2249.14,
+    "net": 17071.39,
+    "shipping": 319.36,
+    "revenue": 17390.75,
+    "newCustomers": 85,
+    "returningCustomers": 162,
+    "aov": 77.905
+   },
+   {
+    "date": "2026-08-15",
+    "orders": 232,
+    "gross": 20193.36,
+    "discounts": 1714.93,
+    "refunds": 223.6,
+    "net": 18254.83,
+    "shipping": 334.33,
+    "revenue": 18589.16,
+    "newCustomers": 79,
+    "returningCustomers": 153,
+    "aov": 79.433
+   },
+   {
+    "date": "2026-08-16",
+    "orders": 257,
+    "gross": 23219.63,
+    "discounts": 1958.82,
+    "refunds": 838.65,
+    "net": 20422.16,
+    "shipping": 302.41,
+    "revenue": 20724.57,
+    "newCustomers": 87,
+    "returningCustomers": 169,
+    "aov": 82.726
+   },
+   {
+    "date": "2026-08-17",
+    "orders": 213,
+    "gross": 19584.37,
+    "discounts": 1904.38,
+    "refunds": 3857.94,
+    "net": 13822.05,
+    "shipping": 276.44,
+    "revenue": 14098.49,
+    "newCustomers": 82,
+    "returningCustomers": 131,
+    "aov": 83.004
+   },
+   {
+    "date": "2026-08-18",
+    "orders": 232,
+    "gross": 24017.56,
+    "discounts": 1996.96,
+    "refunds": 3118.01,
+    "net": 18902.59,
+    "shipping": 369.26,
+    "revenue": 19271.85,
+    "newCustomers": 99,
+    "returningCustomers": 131,
+    "aov": 94.725
+   },
+   {
+    "date": "2026-08-19",
+    "orders": 254,
+    "gross": 25380.42,
+    "discounts": 1699.3,
+    "refunds": 4828.84,
+    "net": 18852.28,
+    "shipping": 319.36,
+    "revenue": 19171.64,
+    "newCustomers": 105,
+    "returningCustomers": 149,
+    "aov": 93.232
+   },
+   {
+    "date": "2026-08-20",
+    "orders": 251,
+    "gross": 22674.81,
+    "discounts": 1379.42,
+    "refunds": 5812.31,
+    "net": 15483.08,
+    "shipping": 409.18,
+    "revenue": 15892.26,
+    "newCustomers": 129,
+    "returningCustomers": 119,
+    "aov": 84.842
+   },
+   {
+    "date": "2026-08-21",
+    "orders": 286,
+    "gross": 27710.47,
+    "discounts": 1872.82,
+    "refunds": 5804.99,
+    "net": 20032.66,
+    "shipping": 429.14,
+    "revenue": 20461.8,
+    "newCustomers": 135,
+    "returningCustomers": 148,
+    "aov": 90.341
+   },
+   {
+    "date": "2026-08-22",
+    "orders": 270,
+    "gross": 26858.14,
+    "discounts": 2207.92,
+    "refunds": 1174.81,
+    "net": 23475.41,
+    "shipping": 384.23,
+    "revenue": 23859.64,
+    "newCustomers": 149,
+    "returningCustomers": 120,
+    "aov": 90.963
+   },
+   {
+    "date": "2026-08-23",
+    "orders": 294,
+    "gross": 28415.37,
+    "discounts": 1988.87,
+    "refunds": 2996.35,
+    "net": 23430.15,
+    "shipping": 389.22,
+    "revenue": 23819.37,
+    "newCustomers": 162,
+    "returningCustomers": 131,
+    "aov": 89.886
+   },
+   {
+    "date": "2026-08-24",
+    "orders": 301,
+    "gross": 30162.12,
+    "discounts": 2492.78,
+    "refunds": 8273.97,
+    "net": 19395.37,
+    "shipping": 444.11,
+    "revenue": 19839.48,
+    "newCustomers": 139,
+    "returningCustomers": 161,
+    "aov": 91.924
+   },
+   {
+    "date": "2026-08-25",
+    "orders": 219,
+    "gross": 19343.92,
+    "discounts": 1635.3,
+    "refunds": 3006.44,
+    "net": 14702.18,
+    "shipping": 324.35,
+    "revenue": 15026.53,
+    "newCustomers": 92,
+    "returningCustomers": 127,
+    "aov": 80.861
+   },
+   {
+    "date": "2026-08-26",
+    "orders": 247,
+    "gross": 20778.95,
+    "discounts": 2140.08,
+    "refunds": 1079.41,
+    "net": 17559.46,
+    "shipping": 329.34,
+    "revenue": 17888.8,
+    "newCustomers": 100,
+    "returningCustomers": 147,
+    "aov": 75.461
+   },
+   {
+    "date": "2026-08-27",
+    "orders": 222,
+    "gross": 18802.45,
+    "discounts": 2375.72,
+    "refunds": 1212.52,
+    "net": 15214.21,
+    "shipping": 289.42,
+    "revenue": 15503.63,
+    "newCustomers": 87,
+    "returningCustomers": 133,
+    "aov": 73.994
+   },
+   {
+    "date": "2026-08-28",
+    "orders": 246,
+    "gross": 19576.71,
+    "discounts": 2461.34,
+    "refunds": 1711.42,
+    "net": 15403.95,
+    "shipping": 394.21,
+    "revenue": 15798.16,
+    "newCustomers": 83,
+    "returningCustomers": 161,
+    "aov": 69.574
+   },
+   {
+    "date": "2026-08-29",
+    "orders": 322,
+    "gross": 25030.73,
+    "discounts": 1912.58,
+    "refunds": 481.82,
+    "net": 22636.33,
+    "shipping": 424.15,
+    "revenue": 23060.48,
+    "newCustomers": 103,
+    "returningCustomers": 217,
+    "aov": 71.795
+   },
+   {
+    "date": "2026-08-30",
+    "orders": 403,
+    "gross": 34179.18,
+    "discounts": 1855.56,
+    "refunds": 71.97,
+    "net": 32251.65,
+    "shipping": 518.96,
+    "revenue": 32770.61,
+    "newCustomers": 193,
+    "returningCustomers": 209,
+    "aov": 80.128
+   },
+   {
+    "date": "2026-08-31",
+    "orders": 277,
+    "gross": 23763.03,
+    "discounts": 1515.87,
+    "refunds": 1716.37,
+    "net": 20530.79,
+    "shipping": 484.03,
+    "revenue": 21014.82,
+    "newCustomers": 175,
+    "returningCustomers": 100,
+    "aov": 80.314
+   },
+   {
+    "date": "2026-09-01",
+    "orders": 301,
+    "gross": 27347.64,
+    "discounts": 2969.81,
+    "refunds": 2194.26,
+    "net": 22183.57,
+    "shipping": 543.91,
+    "revenue": 22727.48,
+    "newCustomers": 183,
+    "returningCustomers": 117,
+    "aov": 80.989
+   },
+   {
+    "date": "2026-09-02",
+    "orders": 305,
+    "gross": 25500.08,
+    "discounts": 1968.32,
+    "refunds": 571.54,
+    "net": 22960.22,
+    "shipping": 551.91,
+    "revenue": 23512.13,
+    "newCustomers": 194,
+    "returningCustomers": 107,
+    "aov": 77.1
+   },
+   {
+    "date": "2026-09-03",
+    "orders": 266,
+    "gross": 22567.38,
+    "discounts": 1981.41,
+    "refunds": 5844.73,
+    "net": 14741.24,
+    "shipping": 439.12,
+    "revenue": 15180.36,
+    "newCustomers": 157,
+    "returningCustomers": 109,
+    "aov": 77.39
+   },
+   {
+    "date": "2026-09-04",
+    "orders": 120,
+    "gross": 10295.53,
+    "discounts": 2453.34,
+    "refunds": 893.83,
+    "net": 6948.36,
+    "shipping": 239.52,
+    "revenue": 7187.88,
+    "newCustomers": 33,
+    "returningCustomers": 87,
+    "aov": 64.601
+   },
+   {
+    "date": "2026-09-05",
+    "orders": 122,
+    "gross": 9144.12,
+    "discounts": 1942.57,
+    "refunds": 2285.7,
+    "net": 4915.85,
+    "shipping": 249.5,
+    "revenue": 5165.35,
+    "newCustomers": 33,
+    "returningCustomers": 89,
+    "aov": 59.029
+   },
+   {
+    "date": "2026-09-06",
+    "orders": 121,
+    "gross": 8559.78,
+    "discounts": 1368.3,
+    "refunds": 31.99,
+    "net": 7159.49,
+    "shipping": 187.64,
+    "revenue": 7347.13,
+    "newCustomers": 26,
+    "returningCustomers": 95,
+    "aov": 59.433
+   },
+   {
+    "date": "2026-09-07",
+    "orders": 153,
+    "gross": 13216.85,
+    "discounts": 2605.49,
+    "refunds": 139.97,
+    "net": 10471.39,
+    "shipping": 269.46,
+    "revenue": 10740.85,
+    "newCustomers": 53,
+    "returningCustomers": 100,
+    "aov": 69.355
+   },
+   {
+    "date": "2026-09-08",
+    "orders": 3,
+    "gross": 262.9,
+    "discounts": 10,
+    "refunds": 0,
+    "net": 252.9,
+    "shipping": 9.98,
+    "revenue": 262.88,
+    "newCustomers": 1,
+    "returningCustomers": 2,
+    "aov": 84.3
+   }
+  ],
+  "products": [
+   {
+    "title": "Untitled / bundle lines",
+    "gross": 447871.07,
+    "net": 373607.45,
+    "orders": 5786
+   },
+   {
+    "title": "Blissta® PainBloc | Whole Body Pain Relief PEA 1200MG (Micronized)",
+    "gross": 53472.67,
+    "net": 46317.56,
+    "orders": 813
+   },
+   {
+    "title": "Blissta®  USP Grade - Methylene Blue 1%",
+    "gross": 41083.2,
+    "net": 22330.45,
+    "orders": 1835
+   },
+   {
+    "title": "BLISSTA® ULTRA BLUE GUMMIES",
+    "gross": 37569.81,
+    "net": 30872.77,
+    "orders": 517
+   },
+   {
+    "title": "Corvael® Nattokinase Fibrinolytic Complex",
+    "gross": 31847.38,
+    "net": 20364.43,
+    "orders": 371
+   },
+   {
+    "title": "Blissta® USP Grade - Methylene Blue 1%",
+    "gross": 19839.84,
+    "net": 12884.62,
+    "orders": 185
+   },
+   {
+    "title": "Blissta® USP Grade Methylene Blue 1%",
+    "gross": 9670.24,
+    "net": 7330.83,
+    "orders": 119
+   },
+   {
+    "title": "Blissta® Soursop Multivitamin Liquid Drops",
+    "gross": 5492.9,
+    "net": 4455.48,
+    "orders": 262
+   },
+   {
+    "title": "Blissta® Aeon Restoration Complex™",
+    "gross": 2865.27,
+    "net": 2410.4,
+    "orders": 33
+   },
+   {
+    "title": "Blissta® USP Grade Methylene Blue Capsules",
+    "gross": 2335.29,
+    "net": 1606.95,
+    "orders": 29
+   },
+   {
+    "title": "The 90-Day Vascular Protocol",
+    "gross": 1839.08,
+    "net": 837.58,
+    "orders": 2580
+   },
+   {
+    "title": "Blissta® L Methyl Folate",
+    "gross": 1316.25,
+    "net": 806.72,
+    "orders": 13
+   },
+   {
+    "title": "Blissta® Pill Organiser＋",
+    "gross": 1195.08,
+    "net": 531.3,
+    "orders": 2587
+   },
+   {
+    "title": "Blissta® Organic Beet Root",
+    "gross": 1035.72,
+    "net": 523.68,
+    "orders": 13
+   },
+   {
+    "title": "Shipping insurance®",
+    "gross": 791.01,
+    "net": 777.04,
+    "orders": 99
+   }
+  ],
+  "channels": [
+   {
+    "source": "direct / untracked",
+    "orders": 7314,
+    "sales": 528461.75
+   },
+   {
+    "source": "social",
+    "orders": 57,
+    "sales": 4834.73
+   },
+   {
+    "source": "search",
+    "orders": 47,
+    "sales": 3812.56
+   },
+   {
+    "source": "email",
+    "orders": 1,
+    "sales": 79.98
+   }
+  ]
+ },
+ "report": {
+  "date": "2026-09-07",
+  "title": "Blissta morning report 2026-09-07",
+  "text": "*Blissta morning report — 2026-09-07*\n\n*Yesterday*\nRevenue $10,741 (-26% vs 7-day avg) · 153 orders · AOV $69.36\nNet profit -$69.12 · margin -0.6% · ad spend $5,300 · ROAS 2.03x\nRefunds $139.97 (1.1% of gross) · new customers 53 · returning 100\n\n*Last 7 days vs previous 7*\nRevenue $91,861 (-35%) · net profit $8,728 (-77%) · margin 9.5%\n\n*Month to date (7 days)*\nRevenue $91,861 · COGS $26,814 · shipping $9,022 · fees $3,080 · ads $37,100 · fixed $7,117\nNet profit $8,728 · margin 9.5% · refund rate 10.3%\n\n*Needs attention*\n:red_circle: Net profit -$69.12 vs 7-day avg $2,125 (-103%)\n:large_green_circle: Refund rate 1.1% vs 7-day avg 10.6% (-90%)\n:large_orange_circle: New customers 53 vs 7-day avg 114 (-54%)\n:large_orange_circle: Orders 153 vs 7-day avg 216 (-29%)\n:large_orange_circle: Revenue $10,741 vs 7-day avg $14,591 (-26%)\n:large_orange_circle: ROAS 2.03x vs 7-day avg 2.75x (-26%)\n\n*Top products, last 30 days*\n1. Blissta® PainBloc | Whole Body Pain Relief PEA 1200MG (Micronized) — $46,318 net\n2. BLISSTA® ULTRA BLUE GUMMIES — $30,873 net\n3. Blissta®  USP Grade - Methylene Blue 1% — $22,330 net\n4. Corvael® Nattokinase Fibrinolytic Complex — $20,364 net\n5. Blissta® USP Grade - Methylene Blue 1% — $12,885 net\n\n_COGS, ad spend and fixed costs are placeholders until you set them in the Costs tab._",
+  "flags": [
+   {
+    "key": "netProfit",
+    "label": "Net profit",
+    "value": -69.11831666666569,
+    "baseline": 2125.129097465438,
+    "change": -1.0325242907591357,
+    "severity": "critical",
+    "money": true,
+    "pct": false
+   },
+   {
+    "key": "refundRate",
+    "label": "Refund rate",
+    "value": 0.010590269239644847,
+    "baseline": 0.10645289939514486,
+    "change": -0.900516854873679,
+    "severity": "good",
+    "money": false,
+    "pct": true
+   },
+   {
+    "key": "newCustomers",
+    "label": "New customers",
+    "value": 53,
+    "baseline": 114.42857142857143,
+    "change": -0.5368289637952559,
+    "severity": "warning",
+    "money": false,
+    "pct": false
+   },
+   {
+    "key": "orders",
+    "label": "Orders",
+    "value": 153,
+    "baseline": 216,
+    "change": -0.2916666666666667,
+    "severity": "warning",
+    "money": false,
+    "pct": false
+   },
+   {
+    "key": "revenue",
+    "label": "Revenue",
+    "value": 10740.85,
+    "baseline": 14590.735714285718,
+    "change": -0.263858230981205,
+    "severity": "warning",
+    "money": true,
+    "pct": false
+   },
+   {
+    "key": "roas",
+    "label": "ROAS",
+    "value": 2.0265754716981133,
+    "baseline": 2.7529690026954183,
+    "change": -0.2638582309812049,
+    "severity": "warning",
+    "money": false,
+    "pct": false
+   }
+  ],
+  "yesterday": {
+   "date": "2026-09-07",
+   "orders": 153,
+   "gross": 13216.85,
+   "discounts": 2605.49,
+   "refunds": 139.97,
+   "shopifyRevenue": 10740.85,
+   "amazonRevenue": 0,
+   "revenue": 10740.85,
+   "cogs": 3141.417,
+   "shippingCost": 994.5,
+   "fees": 357.38465,
+   "adSpend": 5300,
+   "ads": {
+    "meta": 4000,
+    "google": 800,
+    "tiktok": 500,
+    "other": 0,
+    "total": 5300
+   },
+   "fixed": 1016.6666666666666,
+   "contribution": 947.5483500000009,
+   "netProfit": -69.11831666666569,
+   "margin": -0.0064350881603100025,
+   "roas": 2.0265754716981133,
+   "cac": 100,
+   "refundRate": 0.010590269239644847,
+   "newCustomers": 53,
+   "returningCustomers": 100,
+   "aov": 69.355
+  },
+  "mtd": {
+   "label": "MTD",
+   "days": 7,
+   "orders": 1388,
+   "gross": 116631.38,
+   "discounts": 15289.24,
+   "refunds": 11962.019999999997,
+   "shopifyRevenue": 91861.18000000002,
+   "amazonRevenue": 0,
+   "revenue": 91861.18000000002,
+   "cogs": 26814.036,
+   "shippingCost": 9022,
+   "fees": 3080.37422,
+   "adSpend": 37100,
+   "fixed": 7116.666666666667,
+   "contribution": 15844.769780000011,
+   "netProfit": 8728.10311333334,
+   "newCustomers": 679,
+   "returningCustomers": 704,
+   "margin": 0.09501405395982654,
+   "roas": 2.476042587601079,
+   "cac": 54.63917525773196,
+   "refundRate": 0.10256262079725025,
+   "aov": 66.18240634005765
+  },
+  "l7": {
+   "label": "L7",
+   "days": 7,
+   "orders": 1388,
+   "gross": 116631.38,
+   "discounts": 15289.24,
+   "refunds": 11962.019999999997,
+   "shopifyRevenue": 91861.18000000002,
+   "amazonRevenue": 0,
+   "revenue": 91861.18000000002,
+   "cogs": 26814.036,
+   "shippingCost": 9022,
+   "fees": 3080.37422,
+   "adSpend": 37100,
+   "fixed": 7116.666666666667,
+   "contribution": 15844.769780000011,
+   "netProfit": 8728.10311333334,
+   "newCustomers": 679,
+   "returningCustomers": 704,
+   "margin": 0.09501405395982654,
+   "roas": 2.476042587601079,
+   "cac": 54.63917525773196,
+   "refundRate": 0.10256262079725025,
+   "aov": 66.18240634005765
+  }
+ }
+};
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var state = { shopify: SNAPSHOT ? SNAPSHOT.shopify : null, refreshedAt: SNAPSHOT ? SNAPSHOT.refreshedAt : null, asOf: SNAPSHOT ? SNAPSHOT.asOf : null,
+                costs: null, reports: [], range: 30, pnlMode: 'monthly', db: null };
+  var fm = PNL.fmtMoney, fp = PNL.fmtPct, fc = PNL.fmtChange;
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pctIn(v) { return Math.round(v * 10000) / 100; }
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', t === b); });
+      document.querySelectorAll('[role=tabpanel]').forEach(function (p) { p.hidden = p.id !== 'tab-' + b.dataset.tab; });
+      lsSet('ledger.tab', b.dataset.tab);
+      if (b.dataset.tab === 'overview') drawChart();
+    });
+  });
+  var savedTab = lsGet('ledger.tab'); if (savedTab) { var tb = $('.tab[data-tab="' + savedTab + '"]'); if (tb) tb.click(); }
+
+  /* ---------- derived ---------- */
+  function costs() { return Object.assign({}, PNL.DEFAULT_COSTS, state.costs || {}); }
+  function daily() { return state.shopify ? PNL.computeDaily(state.shopify.days, costs()) : []; }
+  function complete(rows) { var t = today(); return rows.filter(function (r) { return r.date < t; }); }
+
+  function renderAll() {
+    if (!state.shopify) return;
+    $('#asof').textContent = 'Shopify data through ' + (state.asOf || '') + (state.refreshedAt ? ', refreshed ' + new Date(state.refreshedAt).toLocaleString() : '');
+    $('#costs-state').hidden = !!(state.costs && state.costs.confirmed);
+    renderKpis(); drawChart(); renderAlerts(); renderStack(); renderTopProducts();
+    renderPnl(); renderProducts(); renderChannels(); renderPreview();
+  }
+
+  /* ---------- KPIs ---------- */
+  function spark(vals, cls) {
+    var w = 120, h = 34, n = vals.length; if (n < 2) return '';
+    var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals); if (mx === mn) mx = mn + 1;
+    var pts = vals.map(function (v, i) { return [(i / (n - 1)) * w, h - 3 - ((v - mn) / (mx - mn)) * (h - 6)]; });
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
+    var last = pts[n - 1];
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true"><path d="' + d + '" fill="none" stroke="var(' + cls + ')" stroke-width="1.5"/><circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="2.5" fill="var(' + cls + ')"/></svg>';
+  }
+  function deltaHtml(cur, base, invert) {
+    var ch = PNL.pctChange(cur, base); var cls = Math.abs(ch) < 0.02 ? 'flat' : ((ch > 0) !== !!invert ? 'up' : 'down');
+    return '<span class="delta ' + cls + '">' + fc(ch) + '</span>';
+  }
+  function renderKpis() {
+    var rows = complete(daily()); if (rows.length < 8) return;
+    var y = rows[rows.length - 1], prev7 = PNL.sumRows(rows.slice(-8, -1), 'p7');
+    var l7 = PNL.sumRows(rows.slice(-7), 'l7'), p7 = PNL.sumRows(rows.slice(-14, -7), 'p7');
+    var m = y.date.slice(0, 7), mtd = PNL.sumRows(rows.filter(function (r) { return r.date.slice(0, 7) === m; }), 'mtd');
+    var last14 = rows.slice(-14);
+    var tiles = [
+      { l: 'Yesterday revenue', v: fm(y.revenue), d: deltaHtml(y.revenue, prev7.revenue / 7) + ' vs 7-day avg', s: spark(last14.map(function (r) { return r.revenue; }), '--s1') },
+      { l: 'Yesterday net profit', v: fm(y.netProfit), d: deltaHtml(y.netProfit, prev7.netProfit / 7) + ' vs 7-day avg', s: spark(last14.map(function (r) { return r.netProfit; }), '--s2') },
+      { l: 'Last 7 days revenue', v: fm(l7.revenue), d: deltaHtml(l7.revenue, p7.revenue) + ' vs prior 7', s: spark(rows.slice(-28).map(function (r) { return r.revenue; }), '--s1') },
+      { l: 'Month to date profit', v: fm(mtd.netProfit), d: 'margin <span class="delta ' + (mtd.margin >= 0.1 ? 'up' : mtd.margin >= 0 ? 'flat' : 'down') + '">' + fp(mtd.margin) + '</span> on ' + fm(mtd.revenue), s: spark(rows.filter(function (r) { return r.date.slice(0, 7) === m; }).map(function (r) { return r.netProfit; }), '--s2') },
+      { l: 'Yesterday ROAS', v: y.roas.toFixed(2) + 'x', d: deltaHtml(y.roas, prev7.roas) + ' · CAC ' + fm(y.cac), s: spark(last14.map(function (r) { return r.roas; }), '--s3') }
+    ];
+    $('#kpis').innerHTML = tiles.map(function (t) { return '<div class="kpi"><div class="kpi-label">' + t.l + '</div><div class="kpi-val">' + t.v + '</div><div class="kpi-delta">' + t.d + '</div>' + t.s + '</div>'; }).join('');
+  }
+
+  /* ---------- main chart ---------- */
+  var chartRows = [];
+  function drawChart() {
+    var svg = $('#main-chart'); if (!svg || svg.closest('section').hidden) return;
+    var rows = complete(daily()).slice(-state.range); chartRows = rows; if (!rows.length) return;
+    var W = svg.clientWidth || 700, H = 300, pl = 56, pr = 20, pt = 14, pb = 28;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var vals = []; rows.forEach(function (r) { vals.push(r.revenue, r.netProfit); });
+    var mn = Math.min(0, Math.min.apply(null, vals)), mx = Math.max.apply(null, vals) * 1.05;
+    var step = niceStep((mx - mn) / 5); mn = Math.floor(mn / step) * step; mx = Math.ceil(mx / step) * step;
+    var x = function (i) { return pl + (i / (rows.length - 1)) * (W - pl - pr); };
+    var y = function (v) { return pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb); };
+    var out = [];
+    for (var v = mn; v <= mx + 1e-6; v += step) {
+      out.push('<line class="grid-l" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>');
+      out.push('<text x="' + (pl - 8) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + tick(v) + '</text>');
+    }
+    if (mn < 0) out.push('<line class="zero" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '"/>');
+    var every = rows.length > 40 ? 14 : 7;
+    rows.forEach(function (r, i) { if ((rows.length - 1 - i) % every === 0) out.push('<text x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (i === rows.length - 1 ? 'end' : i === 0 ? 'start' : 'middle') + '">' + r.date.slice(5) + '</text>'); });
+    var p1 = rows.map(function (r, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(r.revenue).toFixed(1); }).join('');
+    var p2 = rows.map(function (r, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(r.netProfit).toFixed(1); }).join('');
+    out.push('<path class="a1" d="' + p1 + 'L' + x(rows.length - 1).toFixed(1) + ' ' + y(Math.max(0, mn)).toFixed(1) + 'L' + pl + ' ' + y(Math.max(0, mn)).toFixed(1) + 'Z"/>');
+    out.push('<path class="l1" d="' + p1 + '"/><path class="l2" d="' + p2 + '"/>');
+    var L = rows[rows.length - 1];
+    out.push('<circle class="pt" cx="' + x(rows.length - 1).toFixed(1) + '" cy="' + y(L.revenue).toFixed(1) + '" r="4" fill="var(--s1)"/><circle class="pt" cx="' + x(rows.length - 1).toFixed(1) + '" cy="' + y(L.netProfit).toFixed(1) + '" r="4" fill="var(--s2)"/>');
+    out.push('<g id="hover"></g><rect x="' + pl + '" y="' + pt + '" width="' + (W - pl - pr) + '" height="' + (H - pt - pb) + '" fill="transparent" id="hit"/>');
+    svg.innerHTML = out.join('');
+    var hit = $('#hit', svg), hover = $('#hover', svg), tip = $('#tip');
+    function move(ev) {
+      var rect = svg.getBoundingClientRect(); var px = (ev.clientX - rect.left) * (W / rect.width);
+      var i = Math.round(((px - pl) / (W - pl - pr)) * (rows.length - 1)); i = Math.max(0, Math.min(rows.length - 1, i));
+      var r = rows[i], cx = x(i);
+      hover.innerHTML = '<line class="cross" x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + pt + '" y2="' + (H - pb) + '"/><circle class="pt" cx="' + cx.toFixed(1) + '" cy="' + y(r.revenue).toFixed(1) + '" r="4" fill="var(--s1)"/><circle class="pt" cx="' + cx.toFixed(1) + '" cy="' + y(r.netProfit).toFixed(1) + '" r="4" fill="var(--s2)"/>';
+      tip.style.display = 'block';
+      tip.innerHTML = '<div class="r"><span>' + r.date + '</span><span>' + r.orders + ' orders</span></div><div class="r"><span>Revenue</span><b>' + fm(r.revenue) + '</b></div><div class="r"><span>Ad spend</span><b>' + fm(r.adSpend) + '</b></div><div class="r"><span>Net profit</span><b>' + fm(r.netProfit) + '</b></div><div class="r"><span>Margin</span><b>' + fp(r.margin) + '</b></div>';
+      var left = (cx / W) * rect.width; var tw = tip.offsetWidth;
+      tip.style.left = (left + 14 + tw > rect.width ? left - tw - 14 : left + 14) + 'px'; tip.style.top = '10px';
+    }
+    hit.addEventListener('mousemove', move); hit.addEventListener('touchmove', function (e) { move(e.touches[0]); }, { passive: true });
+    hit.addEventListener('mouseleave', function () { hover.innerHTML = ''; tip.style.display = 'none'; });
+  }
+  function niceStep(raw) { var p = Math.pow(10, Math.floor(Math.log10(raw))); var f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+  function tick(v) { var a = Math.abs(v); var s = a >= 1000 ? (a / 1000).toFixed(a % 1000 ? 1 : 0) + 'k' : String(Math.round(a)); return (v < 0 ? '-$' : '$') + s; }
+  $('#range').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; state.range = +b.dataset.n; $('#range').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); drawChart(); });
+  var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(drawChart, 120); });
+
+  /* ---------- alerts ---------- */
+  function renderAlerts() {
+    var an = PNL.detectAnomalies(daily(), today());
+    $('#alert-meta').textContent = an.yesterday ? an.yesterday.date + ' vs trailing 7 days' : '';
+    if (!an.flags.length) { $('#alerts').innerHTML = '<div class="empty">Nothing outside normal range yesterday.</div>'; return; }
+    $('#alerts').innerHTML = an.flags.map(function (f) {
+      var v = f.money ? fm(f.value) : f.pct ? fp(f.value) : f.key === 'roas' ? f.value.toFixed(2) + 'x' : Math.round(f.value);
+      var b = f.money ? fm(f.baseline) : f.pct ? fp(f.baseline) : f.key === 'roas' ? f.baseline.toFixed(2) + 'x' : Math.round(f.baseline);
+      return '<div class="alert ' + f.severity + '"><div class="bar"></div><div><div class="t">' + f.label + '</div><div class="d">' + (f.severity === 'good' ? 'Better than usual' : f.severity === 'critical' ? 'Well outside normal' : 'Outside normal') + ', 7-day avg ' + b + '</div></div><div class="v">' + v + '<br><span class="delta">' + fc(f.change) + '</span></div></div>';
+    }).join('');
+  }
+
+  /* ---------- cost stack ---------- */
+  function renderStack() {
+    var rows = complete(daily()); if (!rows.length) return;
+    var m = rows[rows.length - 1].date.slice(0, 7); var s = PNL.sumRows(rows.filter(function (r) { return r.date.slice(0, 7) === m; }), 'mtd');
+    $('#stack-meta').textContent = 'Month to date, ' + fm(s.revenue) + ' revenue';
+    var parts = [['COGS', s.cogs, 'var(--s2)'], ['Ad spend', s.adSpend, 'var(--s3)'], ['Shipping', s.shippingCost, '#8a6cd9'], ['Fees', s.fees, '#b59a2d'], ['Fixed', s.fixed, '#8b9a95'], ['Net profit', Math.max(0, s.netProfit), 'var(--s1)']];
+    var total = parts.reduce(function (a, p) { return a + p[1]; }, 0) || 1;
+    $('#stack').innerHTML = '<div class="stack-bar">' + parts.map(function (p) { return '<div style="width:' + (p[1] / total * 100).toFixed(2) + '%;background:' + p[2] + '" title="' + p[0] + '"></div>'; }).join('') + '</div><div class="stack-key">' +
+      parts.map(function (p) { return '<span><span><i style="background:' + p[2] + '"></i>' + p[0] + '</span><b class="num">' + fm(p[1]) + ' · ' + fp(p[1] / (s.revenue || 1), 0) + '</b></span>'; }).join('') + '</div>' +
+      (s.netProfit < 0 ? '<div class="note">Net loss of ' + fm(-s.netProfit) + ' month to date with current cost settings.</div>' : '');
+  }
+
+  /* ---------- products & channels ---------- */
+  function realProducts() { return (state.shopify.products || []).filter(function (p) { return p.title !== 'Untitled / bundle lines'; }).sort(function (a, b) { return b.net - a.net; }); }
+  function renderTopProducts() {
+    var ps = realProducts().slice(0, 8); var mx = ps.length ? ps[0].net : 1;
+    $('#top-products').innerHTML = ps.map(function (p) { return '<div class="hbar"><div class="n" title="' + esc(p.title) + '">' + esc(p.title.replace(/Blissta®\s*/i, '')) + '</div><div class="b"><div style="width:' + (p.net / mx * 100).toFixed(1) + '%"></div></div><div class="v">' + fm(p.net) + '</div></div>'; }).join('');
+  }
+  function renderProducts() {
+    var ps = realProducts(); var untitled = (state.shopify.products || []).filter(function (p) { return p.title === 'Untitled / bundle lines'; })[0];
+    var h = '<thead><tr><th>Product</th><th>Gross</th><th>Net</th><th>Orders</th><th>Net / order</th></tr></thead><tbody>';
+    h += ps.map(function (p) { return '<tr><td>' + esc(p.title) + '</td><td>' + fm(p.gross) + '</td><td>' + fm(p.net) + '</td><td>' + p.orders + '</td><td>' + fm(p.orders ? p.net / p.orders : 0) + '</td></tr>'; }).join('');
+    if (untitled) h += '<tr class="dim"><td>Lines with no product title (bundles, deleted products, subscriptions)</td><td>' + fm(untitled.gross) + '</td><td>' + fm(untitled.net) + '</td><td>' + untitled.orders + '</td><td>' + fm(untitled.orders ? untitled.net / untitled.orders : 0) + '</td></tr>';
+    $('#products-table').innerHTML = h + '</tbody>';
+  }
+  function renderChannels() {
+    var cs = (state.shopify.channels || []).slice().sort(function (a, b) { return b.sales - a.sales; }); var tot = cs.reduce(function (a, c) { return a + c.sales; }, 0) || 1;
+    $('#channels-table').innerHTML = '<thead><tr><th>Source</th><th>Orders</th><th>Sales</th><th>Share</th></tr></thead><tbody>' + cs.map(function (c) { return '<tr><td>' + esc(c.source) + '</td><td>' + c.orders + '</td><td>' + fm(c.sales) + '</td><td>' + fp(c.sales / tot, 0) + '</td></tr>'; }).join('') + '</tbody>';
+  }
+
+  /* ---------- P&L table ---------- */
+  var LINES = [
+    ['group', 'Sales'], ['gross', 'Gross sales'], ['discounts', 'Discounts', -1], ['refunds', 'Refunds', -1], ['shopifyRevenue', 'Shopify revenue', 0, 'sub'], ['amazonRevenue', 'Amazon revenue'], ['revenue', 'Total revenue', 0, 'sub'],
+    ['group', 'Variable costs'], ['cogs', 'Cost of goods', -1], ['shippingCost', 'Shipping cost', -1], ['fees', 'Payment fees', -1], ['adSpend', 'Ad spend', -1], ['contribution', 'Contribution profit', 0, 'sub'],
+    ['group', 'Fixed costs'], ['fixed', 'Fixed costs', -1], ['netProfit', 'Net profit', 0, 'total'],
+    ['group', 'Ratios'], ['margin', 'Net margin', 'pct'], ['roas', 'ROAS', 'x'], ['refundRate', 'Refund rate', 'pct'], ['orders', 'Orders', 'int'], ['aov', 'Average order value'], ['newCustomers', 'New customers', 'int'], ['cac', 'Cost per new customer']
+  ];
+  function cell(v, kind) {
+    if (kind === 'pct') return '<td class="' + (v < 0 ? 'neg' : '') + '">' + fp(v) + '</td>';
+    if (kind === 'x') return '<td>' + v.toFixed(2) + 'x</td>';
+    if (kind === 'int') return '<td>' + Math.round(v).toLocaleString('en-US') + '</td>';
+    if (kind === -1) return '<td>' + (v ? '(' + fm(v).replace('$', '') + ')' : '0.00') + '</td>';
+    return '<td class="' + (v < 0 ? 'neg' : '') + '">' + fm(v) + '</td>';
+  }
+  function renderPnl() {
+    var rows = daily(); var cols;
+    if (state.pnlMode === 'monthly') { cols = PNL.computeMonthly(complete(rows)); }
+    else { cols = complete(rows).slice(-31).reverse(); }
+    var h = '<thead><tr><th>' + (state.pnlMode === 'monthly' ? 'Line' : 'Line') + '</th>' + cols.map(function (c) { return '<th>' + (c.label ? monthName(c.label) + (c.days < 28 ? ' <span style="font-weight:400">(' + c.days + 'd)</span>' : '') : c.date) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    LINES.forEach(function (L) {
+      if (L[0] === 'group') { h += '<tr class="group"><td colspan="' + (cols.length + 1) + '">' + L[1] + '</td></tr>'; return; }
+      h += '<tr class="' + (L[3] || '') + '"><td>' + L[1] + '</td>' + cols.map(function (c) { return cell(c[L[0]] || 0, L[2]); }).join('') + '</tr>';
+    });
+    $('#pnl-table').innerHTML = h + '</tbody>';
+  }
+  function monthName(m) { return new Date(m + '-15T00:00:00Z').toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }); }
+  $('#pnl-mode').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; state.pnlMode = b.dataset.m; $('#pnl-mode').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); renderPnl(); });
+
+  /* ---------- costs form ---------- */
+  function fillForm() {
+    var c = costs();
+    $('#cogsPct').value = pctIn(c.cogsPct); $('#shippingCostPerOrder').value = c.shippingCostPerOrder; $('#feePct').value = pctIn(c.feePct); $('#feeFixed').value = c.feeFixed;
+    ['meta', 'google', 'tiktok', 'other'].forEach(function (k) { $('#ad_' + k).value = c.adDaily[k] || 0; });
+    $('#fixed').innerHTML = (c.fixedMonthly || []).map(fixedRow).join('');
+    $('#overrides').innerHTML = Object.keys(c.adOverrides || {}).sort().map(function (d) { var o = c.adOverrides[d]; return ['meta', 'google', 'tiktok', 'other'].filter(function (k) { return o[k] != null; }).map(function (k) { return overrideRow(d, k, o[k]); }).join(''); }).join('');
+    $('#amazon').value = (c.amazon || []).map(function (a) { return [a.date, a.revenue, a.refunds, a.fees, a.adSpend, a.cogs].join(', '); }).join('\n');
+  }
+  function fixedRow(f) { return '<div class="in-row"><input class="in f-name" placeholder="Name" value="' + esc(f.name || '') + '"><input class="in f-amt" type="number" step="1" min="0" placeholder="$ / month" value="' + (f.amount || 0) + '"><button class="btn x" type="button" title="Remove">×</button></div>'; }
+  function overrideRow(d, k, v) { return '<div class="in-row four"><input class="in o-date" type="date" value="' + esc(d || '') + '"><select class="in o-ch">' + ['meta', 'google', 'tiktok', 'other'].map(function (c) { return '<option' + (c === k ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select><input class="in o-amt" type="number" step="1" min="0" placeholder="$ that day" value="' + (v != null ? v : '') + '"><button class="btn x" type="button" title="Remove">×</button></div>'; }
+  $('#add-fixed').addEventListener('click', function () { $('#fixed').insertAdjacentHTML('beforeend', fixedRow({})); });
+  $('#add-override').addEventListener('click', function () { $('#overrides').insertAdjacentHTML('beforeend', overrideRow(today(), 'meta', '')); });
+  $('#costs-form').addEventListener('click', function (e) { if (e.target.classList.contains('x')) e.target.closest('.in-row').remove(); });
+  function readForm() {
+    var c = {
+      confirmed: true, cogsPct: (+$('#cogsPct').value || 0) / 100, shippingCostPerOrder: +$('#shippingCostPerOrder').value || 0, feePct: (+$('#feePct').value || 0) / 100, feeFixed: +$('#feeFixed').value || 0,
+      adDaily: {}, adOverrides: {}, fixedMonthly: [], amazon: [], updatedAt: new Date().toISOString()
+    };
+    ['meta', 'google', 'tiktok', 'other'].forEach(function (k) { c.adDaily[k] = +$('#ad_' + k).value || 0; });
+    $('#fixed').querySelectorAll('.in-row').forEach(function (r) { var n = $('.f-name', r).value.trim(); if (n) c.fixedMonthly.push({ name: n, amount: +$('.f-amt', r).value || 0 }); });
+    $('#overrides').querySelectorAll('.in-row').forEach(function (r) { var d = $('.o-date', r).value, k = $('.o-ch', r).value, v = $('.o-amt', r).value; if (d && v !== '') { c.adOverrides[d] = c.adOverrides[d] || {}; c.adOverrides[d][k] = +v; } });
+    $('#amazon').value.split('\n').forEach(function (line) { var p = line.split(',').map(function (s) { return s.trim(); }); if (p.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(p[0])) c.amazon.push({ date: p[0], revenue: +p[1] || 0, refunds: +p[2] || 0, fees: +p[3] || 0, adSpend: +p[4] || 0, cogs: +p[5] || 0 }); });
+    return c;
+  }
+  function toast(msg, err) { var t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
+  $('#save-costs').addEventListener('click', function () {
+    var c = readForm(); state.costs = c; lsSet('ledger.costs', c); renderAll();
+    if (state.db) state.db.doc('config/costs').set(c).then(function () { toast('Saved. Every number is updated.'); }, function (e) { toast('Saved on this device only. ' + (e.message || ''), true); });
+    else toast('Saved on this device. Open inside Claude to sync it everywhere.');
+  });
+  $('#reset-costs').addEventListener('click', function () { state.costs = null; fillForm(); });
+
+  /* ---------- reports ---------- */
+  function mdToHtml(t) { return esc(t).replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/_([^_\n]+)_/g, '<em>$1</em>').replace(/:red_circle:/g, '🔴').replace(/:large_orange_circle:/g, '🟠').replace(/:large_green_circle:/g, '🟢'); }
+  function renderPreview() {
+    var r = PNL.buildReport({ daily: daily(), asOf: today(), products: realProducts(), costs: costs() });
+    $('#preview-meta').textContent = r.yesterday ? 'As it would read for ' + r.yesterday.date : '';
+    $('#report-preview').innerHTML = mdToHtml(r.text);
+  }
+  function renderReports() {
+    if (!state.reports.length) { $('#report-list').innerHTML = '<div class="empty">No reports sent yet. The first one goes out tomorrow morning.</div>'; return; }
+    $('#report-list').innerHTML = state.reports.map(function (r, i) { return '<details class="report-item"' + (i === 0 ? ' open' : '') + '><summary><span>' + esc(r.title || r.date) + '</span><span class="meta">' + (r.sentAt ? new Date(r.sentAt).toLocaleString() : '') + '</span></summary><div class="report" style="margin-top:10px">' + mdToHtml(r.text || '') + '</div></details>'; }).join('');
+  }
+
+  /* ---------- boot ---------- */
+  state.costs = lsGet('ledger.costs'); fillForm(); renderAll(); renderReports();
+  window.claude && window.claude.use && window.claude.use('db').then(function (db) {
+    if (!db) { $('#live').innerHTML = '<span class="dot off"></span> Snapshot, not live'; return; }
+    state.db = db;
+    db.doc('shopify/daily').onSnapshot(function (s) {
+      if (!s.exists) return; var d = s.data();
+      state.shopify = d.shopify; state.refreshedAt = d.refreshedAt; state.asOf = d.asOf; renderAll();
+      $('#live').innerHTML = '<span class="dot"></span> Live';
+    }, function (e) { $('#live').innerHTML = '<span class="dot off"></span> ' + esc(e.message); });
+    db.doc('config/costs').onSnapshot(function (s) { if (s.exists) { state.costs = s.data(); lsSet('ledger.costs', state.costs); fillForm(); renderAll(); } });
+    db.collection('reports').orderBy('date', 'desc').limit(60).onSnapshot(function (q) { state.reports = q.docs.map(function (d) { return d.data(); }); renderReports(); });
+  }).catch(function () {});
+})();
+</script>
