@@ -190,6 +190,12 @@ async function handle({ event, client, say }) {
     try { for (const t of await require('./topads').command(text)) await say({ text: t, thread_ts, unfurl_links: false, unfurl_media: false }); } catch (e) { await say({ text: 'Top ads failed: ' + e.message, thread_ts }); }
     return;
   }
+  /* campaigns <account> [days] | breakdown <account> | <campaign text> [days] [min spend]      owner only. See src/results.js. */
+  if (tier === 'owner' && /^(campaigns\s+\S|breakdown\s+.+\|)/i.test(text)) {
+    if (/^breakdown/i.test(text)) await say({ text: 'On it. Pulling every creative and breaking each one down. New ones take about 2 minutes each.', thread_ts });
+    try { for (const t of (await require('./results').adhoc(text, client)) || ['Could not read that. Try: breakdown my puti | C 30']) await say({ text: t, thread_ts, unfurl_links: false, unfurl_media: false }); } catch (e) { await say({ text: 'Breakdown failed: ' + e.message, thread_ts }); }
+    return;
+  }
   /* vault results [dry]      owner only. Our own ads into the Winners Vault, see src/results.js. */
   if (tier === 'owner' && /^vault results(\s+dry)?\s*$/i.test(text)) {
     await say({ text: 'Pulling our last 30 days from Meta and breaking down new ads for the vault. This takes a few minutes.', thread_ts });

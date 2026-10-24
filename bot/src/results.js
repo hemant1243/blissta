@@ -319,4 +319,102 @@ async function command(text, client) {
   } finally { running = false; }
 }
 
-module.exports = { tick, command, runOnce, _t: { verdict, keyOf, norm, product, parseBlock } };
+
+/* ---------- on-demand: one account, one campaign filter ---------- */
+async function findAccount(match) {
+  const all = await meta.adAccounts();
+  const m = String(match || '').toLowerCase().replace(/\s+/g, '');
+  const hit = all.find((a) => a.id === match || a.id === 'act_' + match) || all.find((a) => (a.name || '').toLowerCase().replace(/\s+/g, '').includes(m));
+  if (!hit) throw new Error(`no ad account matching "${match}". I can see: ${all.map((a) => a.name).join(', ')}`);
+  return hit;
+}
+
+/* "campaigns <account> [days]": every campaign with spend, best first. */
+async function campaigns(accountMatch, days = 30) {
+  const a = await findAccount(accountMatch);
+  const until = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const rows = await pages('/' + a.id + '/insights', { level: 'campaign', fields: 'campaign_id,campaign_name,spend,actions,action_values', time_range: JSON.stringify({ since, until }) });
+  const list = rows.map((x) => { const s = Number(x.spend) || 0; const v = act(x.action_values, PURCHASE); return { name: x.campaign_name, spend: s, roas: s ? v / s : 0, buys: act(x.actions, PURCHASE) }; }).filter((x) => x.spend > 0).sort((p, q) => q.spend - p.spend);
+  return `${a.name}, ${since} to ${until}, ${list.length} campaigns with spend:\n` + list.map((x) => `• ${x.name}: $${Math.round(x.spend).toLocaleString()} · ROAS ${x.roas.toFixed(2)} · ${Math.round(x.buys)} sales`).join('\n');
+}
+
+/* "breakdown <account> | <campaign text> [days] [min spend]": every creative in matching campaigns,
+   numbers, verdict, Claude's breakdown (reused from the vault store when it exists) and the full copy. */
+async function breakdown(client, accountMatch, campaignMatch, days = 30, minSpend = 50) {
+  const a = await findAccount(accountMatch);
+  const until = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const filtering = campaignMatch ? JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: campaignMatch }]) : undefined;
+  const rows = await pages('/' + a.id + '/insights', { level: 'ad', fields: 'ad_id,ad_name,campaign_name,adset_name,spend,impressions,inline_link_clicks,actions,action_values,video_thruplay_watched_actions', time_range: JSON.stringify({ since, until }), ...(filtering ? { filtering } : {}) });
+  const groups = new Map();
+  for (const x of rows) {
+    const k = keyOf(x.ad_name);
+    const g = groups.get(k) || { key: k, name: norm(x.ad_name), campaigns: new Set(), spend: 0, value: 0, purchases: 0, impressions: 0, clicks: 0, views3s: 0, thruplays: 0, top: null, topSpend: -1, copies: 0 };
+    const sp = Number(x.spend) || 0;
+    g.spend += sp; g.value += act(x.action_values, PURCHASE); g.purchases += act(x.actions, PURCHASE);
+    g.impressions += Number(x.impressions) || 0; g.clicks += Number(x.inline_link_clicks) || 0;
+    g.views3s += act(x.actions, ['video_view']); g.thruplays += act(x.video_thruplay_watched_actions, ['video_view']);
+    g.campaigns.add(x.campaign_name || ''); g.copies++;
+    if (sp > g.topSpend) { g.topSpend = sp; g.top = x.ad_id; }
+    groups.set(k, g);
+  }
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const list = [...groups.values()].filter((g) => g.spend >= minSpend).map((g) => {
+    const ctr = g.impressions ? g.clicks / g.impressions : 0;
+    const m = { key: g.key, name: g.name, ad_id: g.top, campaigns: [...g.campaigns], product: product([g.name, ...g.campaigns].join(' ')), copies: g.copies,
+      spend: r2(g.spend), roas: g.spend ? r2(g.value / g.spend) : 0, purchases: Math.round(g.purchases), cpa: g.purchases ? r2(g.spend / g.purchases) : null,
+      ctr: r2(ctr * 100), hook_rate: g.views3s && g.impressions ? r2((g.views3s / g.impressions) * 100) : null, hold_rate: g.thruplays && g.views3s ? r2((g.thruplays / g.views3s) * 100) : null };
+    m.verdict = verdict({ spend: m.spend, roas: m.roas, purchases: m.purchases, ctr });
+    return m;
+  }).sort((p, q) => q.spend - p.spend);
+  const ch = await channel(client);
+  const known = new Map();
+  for (const msg of await history(client, ch)) { const t = msg.text || ''; if (t.startsWith('VAULT|')) { const k = t.slice(6, t.indexOf('\n') > 0 ? t.indexOf('\n') : undefined).trim(); const o = parseBlock(t); if (o) known.set(k, o); } }
+  const out = [`${a.name}, campaigns containing "${campaignMatch}", ${since} to ${until}: ${list.length} creatives with $${minSpend}+ spend (copies merged), best spend first.`];
+  for (const [i, m] of list.entries()) {
+    let rec = known.get(m.key);
+    let copy = { bodies: [], titles: [], preview: '', images: [], videos: [] };
+    try { copy = await topads.creativeOf(m.ad_id); } catch (e) { console.error('[breakdown] creative', m.key, e.message); }
+    if (!rec) {
+      try {
+        const d = await describe(m);
+        rec = { key: m.key, name: m.name, product: m.product, ad_id: m.ad_id, tagged_at: until, tags: d.tags, media: d.media };
+        let text = 'VAULT|' + m.key + '\n' + block(rec);
+        if (text.length > 39000) { rec.media.thumb = ''; rec.media.body = (rec.media.body || '').slice(0, 8000); text = 'VAULT|' + m.key + '\n' + block(rec); }
+        await client.chat.postMessage({ channel: ch, text, unfurl_links: false, unfurl_media: false });
+        known.set(m.key, rec);
+      } catch (e) { console.error('[breakdown] tag', m.key, e.message); }
+    }
+    const t = (rec && rec.tags) || {};
+    const L = [
+      `*#${i + 1} ${m.name}*  ·  ${m.verdict.toUpperCase()}`,
+      `Spend $${Math.round(m.spend).toLocaleString()} · ROAS ${m.roas.toFixed(2)} · ${m.purchases} sales · CPA ${m.cpa ? '$' + m.cpa : 'n/a'} · CTR ${m.ctr}%${m.hook_rate != null ? ` · Hook ${m.hook_rate}%` : ''}${m.hold_rate != null ? ` · Hold ${m.hold_rate}%` : ''}${m.copies > 1 ? ` · ${m.copies} copies` : ''}`,
+      `Campaign: ${m.campaigns.join(', ')}`,
+    ];
+    if (t.kind) L.push(`Type: ${t.kind} · ${t.format} · ${t.funnel} · ${t.awareness} · stage ${t.sophistication}`,
+      `Hook: ${t.hook_text}`, `Hook type: ${(t.hook_type || []).join(', ')} · Emotion: ${(t.emotion || []).join(', ')}`,
+      `Angle: ${t.angle}`, `Door: ${t.door}`, `Visual: ${t.visual}`,
+      t.narrator ? `Narrator: ${t.narrator}` : '', t.villain ? `Villain: ${t.villain}` : '', t.mechanism ? `Mechanism: ${t.mechanism}` : '',
+      t.offer ? `Offer: ${t.offer}` : '', `Proof: ${(t.proof || []).join(', ')}`,
+      t.story_beats ? `Story: ${t.story_beats}` : '', `Why it could work: ${t.why_it_could_work || ''}`, `Weak spot: ${t.weak_spot || ''}`);
+    else L.push('(breakdown failed, numbers and copy only)');
+    if (copy.preview) L.push(`Preview: ${copy.preview}`);
+    for (const v of copy.videos || []) L.push(`Video: ${v}`);
+    for (const im of (copy.images || []).slice(0, 2)) L.push(`Image: ${im}`);
+    for (const h of copy.titles || []) L.push(`Headline: ${h}`);
+    for (const b of copy.bodies || []) L.push(`Copy:\n${b}`);
+    out.push(L.filter(Boolean).join('\n').slice(0, 39000));
+  }
+  return out;
+}
+
+async function adhoc(text, client) {
+  let m = /^campaigns\s+(.+?)(?:\s+(\d{1,3}))?\s*$/i.exec(String(text || '').trim());
+  if (m) return [await campaigns(m[1], Number(m[2] || 30))];
+  m = /^breakdown\s+(.+?)\s*\|\s*(.*?)(?:\s+(\d{1,3}))?(?:\s+\$?(\d{1,6}))?\s*$/i.exec(String(text || '').trim());
+  if (m) return breakdown(client, m[1], m[2], Number(m[3] || 30), Number(m[4] || 50));
+  return null;
+}
+
+module.exports = { tick, command, runOnce, adhoc, _t: { verdict, keyOf, norm, product, parseBlock } };
