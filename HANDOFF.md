@@ -67,3 +67,7 @@ Hemant (DONAAA), owner of Blissta, a US supplement brand on Meta ads. The produc
 
 ## Saving Claude usage
 Long chats re-read their whole history on every message. Start a fresh chat for a new topic and point it at this file. Use big multi-agent research only when he asks for it.
+
+## Winners Vault feed (Oct 24)
+- **Our own ads into the vault:** `bot/src/results.js`. Tuesday 6am Bangkok (or `vault results` from an owner), Donnaa pulls the last 30 days from Meta, merges copies, gives every creative with $100+ spend a verdict against 1.4 (same ladder as Day 7), and has Claude break down new ones once (image, or 6 video frames via ffmpeg-static, plus copy). Stored as messages in the private channel #blissta-vault-results (VAULT|, VAULTNUMS|, VAULTSUM|). The weekly summary of what our winners vs losers share is DMed to Hemant.
+- The Wednesday "Winners Vault weekly add" scheduled task reads that channel and merges it into the vault page (https://claude.ai/artifact/9xFo1D7eqCr4VyTd8UZSCG). Off switch: VAULT_RESULTS_ENABLED=0 on Railway. Max new per run: VAULT_MAX_NEW (40).

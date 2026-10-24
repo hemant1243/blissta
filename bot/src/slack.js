@@ -190,6 +190,12 @@ async function handle({ event, client, say }) {
     try { for (const t of await require('./topads').command(text)) await say({ text: t, thread_ts, unfurl_links: false, unfurl_media: false }); } catch (e) { await say({ text: 'Top ads failed: ' + e.message, thread_ts }); }
     return;
   }
+  /* vault results [dry]      owner only. Our own ads into the Winners Vault, see src/results.js. */
+  if (tier === 'owner' && /^vault results(\s+dry)?\s*$/i.test(text)) {
+    await say({ text: 'Pulling our last 30 days from Meta and breaking down new ads for the vault. This takes a few minutes.', thread_ts });
+    try { await say({ text: await require('./results').command(text, client), thread_ts }); } catch (e) { await say({ text: 'Vault results failed: ' + e.message, thread_ts }); }
+    return;
+  }
   /* day7 run | preview      owner only. */
   if (tier === 'owner' && /^day7\s+(run|preview)\s*$/i.test(text)) {
     try { await say({ text: await day7.command(text, client), thread_ts }); } catch (e) { await say({ text: 'Day 7 failed: ' + e.message, thread_ts }); }
@@ -412,6 +418,9 @@ app.message(async (args) => {
   /* Day 7 creative sheet: daily pull at 9am Bangkok, Monday and Friday posts. See src/day7.js. */
   const runD = async () => { try { const r = await day7.tick(app.client); if (r.length) console.log('[day7]', JSON.stringify(r)); } catch (e) { console.error('[day7] tick failed:', e.message); } };
   setTimeout(runD, 60000); setInterval(runD, 10 * 60000);
+  /* Winners Vault feed: our own ads, Tuesday 6am Bangkok. See src/results.js. */
+  const runV = async () => { try { const r = await require('./results').tick(app.client); if (r) console.log('[results]', JSON.stringify(r)); } catch (e) { console.error('[results] tick failed:', e.message); } };
+  setTimeout(runV, 120000); setInterval(runV, 30 * 60000);
   if (process.env.CHASE_ENABLED === '1') {
     const every = Number(process.env.CHASE_EVERY_MIN || 15) * 60000;
     const run = async () => { try { const r = await chase.editorTick(app.client); console.log('[chase]', process.env.CHASE_LIVE === '1' ? 'live' : 'dry', JSON.stringify(r)); } catch (e) { console.error('[chase] tick failed:', e.message); } };

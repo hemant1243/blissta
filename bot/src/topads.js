@@ -136,4 +136,4 @@ async function command(text) {
   return [`Top ads ${r.since} to ${r.until}: ${r.total} ads with $${MIN_SPEND}+ spend and ROAS ${MIN_ROAS}+, showing the top ${r.ads.length} by spend.`, ...r.ads.map(message)];
 }
 
-module.exports = { command, top, comments };
+module.exports = { command, top, comments, creativeOf: creative };
